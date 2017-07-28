@@ -26,8 +26,8 @@ class Vehicle
   int preferred_buffer = 6; // impacts "keep lane" behavior.
 
   int lane;
-  double s;
-
+  double x,y;
+  double s,d, yaw;
   double v;
   double prev_v;
   double a;
@@ -46,7 +46,7 @@ class Vehicle
   /**
   * Constructor
   */
-  Vehicle(int lane, double s, double v, double a);
+//  Vehicle(int lane, double s, double v, double a);
   Vehicle();
 
   /**
@@ -54,7 +54,7 @@ class Vehicle
   */
   virtual ~Vehicle();
 
-  void update_state(map<int, vector<vector<int> > > predictions);
+  void update_state(vector<vector<int> > predictions);
 
   void configure(vector<int> road_data);
 
@@ -63,7 +63,10 @@ class Vehicle
   void increment(int dt);
 
   vector<int> state_at(int t);
-
+  
+  double deg2rad(double x) { return x * M_PI / 180; }
+  double rad2deg(double x) { return x * 180 / M_PI; }
+  
   bool collides_with(Vehicle other, int at_time);
 
   collider will_collide_with(Vehicle other, int timesteps);

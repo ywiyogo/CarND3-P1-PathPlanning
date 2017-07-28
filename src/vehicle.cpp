@@ -9,34 +9,58 @@
 /**
  * Initializes Vehicle
  */
-Vehicle::Vehicle(int lane, double s, double v, double a)
+Vehicle::Vehicle()
+    : lane(0)
+    , x(0)
+    , y(0)
+    , s(0)
+    , d(0)
+    , yaw(0)
+    , v(0)
+    , prev_v(0)
+    , a(0)
+    , prev_a(0)
+    , state("KL")
+    , // constant speed,
+    max_acceleration(0)
+    , acc_list(10)
 {
-
-  this->lane = lane;
-  this->s = s;
-  this->v = v;
-  this->prev_v = 0;
-  this->a = a;
-  this->prev_a = 0;
-  state = "CS";
-  max_acceleration = -1;
-  this->acc_list(10);
 }
+
+//Vehicle::Vehicle(int lane, double s, double v, double a)
+//    : lane(lane)
+//    , x(0)
+//    , y(0)
+//    , s(0)
+//    , d(0)
+//    , yaw(0)
+//    , s(s)
+//    , v(v)
+//    , prev_v(0)
+//    , a(a)
+//    , prev_a(0)
+//    , state("CS")
+//    , max_acceleration(0)
+//    , acc_list(10, 0.0)
+//{
+//  
+//}
 
 Vehicle::~Vehicle()
 {
 }
 
-void Vehicle::update_state(map<int, vector<vector<int> > > predictions)
+//void Vehicle::update_state(map<int, vector<vector<int> > > predictions)
+void Vehicle::update_state(vector<vector<int>> predictions)
 {
 
   // speed
   double dist_inc = 0.1;
   for(int i = 0; i < 50; i++) {
-    next_x_vals.push_back(car_x + (dist_inc * i) * cos(deg2rad(car_yaw)));
-    next_y_vals.push_back(car_y + (dist_inc * i) * sin(deg2rad(car_yaw)));
+    next_x_vals.push_back(this->x + (dist_inc * i) * cos(deg2rad(this->yaw)));
+    next_y_vals.push_back(this->y + (dist_inc * i) * sin(deg2rad(this->yaw)));
   }
-  this->a = this->prev_v - this->v ;
+  this->a = this->prev_v - this->v;
 
   this->acc_list.erase(acc_list.begin());
   this->acc_list.push_back(this->a);
