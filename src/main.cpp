@@ -132,33 +132,54 @@ vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x
 	return {frenet_s,frenet_d};
 
 }
-
 // Transform from Frenet s,d coordinates to Cartesian x,y
 vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
 {
-	int prev_wp = -1;
+  int prev_wp = -1;
 
-	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
-	{
-		prev_wp++;
-	}
+  while(s > maps_s[prev_wp + 1] && (prev_wp < (int)(maps_s.size() - 1))) {
+    prev_wp++;
+  }
 
-	int wp2 = (prev_wp+1)%maps_x.size();
+  int wp2 = (prev_wp + 1) % maps_x.size();
 
-	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
-	// the x,y,s along the segment
-	double seg_s = (s-maps_s[prev_wp]);
+  double heading = atan2((maps_y[wp2] - maps_y[prev_wp]), (maps_x[wp2] - maps_x[prev_wp]));
+  // the x,y,s along the segment
+  double seg_s = (s - maps_s[prev_wp]);
 
-	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
-	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
+  double seg_x = maps_x[prev_wp] + seg_s * cos(heading);
+  double seg_y = maps_y[prev_wp] + seg_s * sin(heading);
 
-	double perp_heading = heading-pi()/2;
+  double perp_heading = heading - M_PI / 2;
 
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
+  double x = seg_x + d * cos(perp_heading);
+  double y = seg_y + d * sin(perp_heading);
 
-	return {x,y};
+  return { x, y };
+}
 
+/*
+ * Generate prediction of all detected vehicles on the right hand side
+ * return []
+ */ 
+vector<vector<int> > generate_prediction(const vector<vector<int> > &detected_vehicles, double dt_s=1)
+{
+  vector<vector<int> > veh_predictions = detected_vehicles;
+  double a = 1.0; //assumed a is 1m/s
+  
+  for(int i =0; i<detected_vehicles.size();i++)
+  {
+    double s = detected_vehicles[i][5];
+    double v = sqrt( pow(detected_vehicles[i][3],2) + pow(detected_vehicles[i][4],2) );
+    double pred_x = detected_vehicles[i][3] * dt_s; //x = vx*dt
+    double pred_y = detected_vehicles[i][4] * dt_s; //y = vy*dt
+    //vector<double> freenet = getFrenet(pred_x, pred_y, 0, map_waypoints_x, map_waypoints_y);
+    veh_predictions[i][1] = pred_x;
+    veh_predictions[i][2] = pred_y;
+    veh_predictions[i][5] = s + v*dt_s + a * dt_s * dt_s/2; //self.s + self.v * t + self.a * t * t / 2
+    //veh_predictions[i][6] = freenet[1];
+  }
+  return veh_predictions;
 }
 
 int main() {
@@ -222,12 +243,12 @@ int main() {
           // j[1] is the data JSON object
 
         	// Main car's localization Data
-          	car.x = j[1]["x"];
-          	car.y = j[1]["y"];
-          	car.s = j[1]["s"];
-          	car.d = j[1]["d"];
-          	car.yaw = j[1]["yaw"];
-          	car.v = j[1]["speed"];
+//          	car.x = j[1]["x"];
+//          	car.y = j[1]["y"];
+//          	car.s = j[1]["s"];
+//          	car.d = j[1]["d"];
+//          	car.yaw = j[1]["yaw"];
+//          	car.v = j[1]["speed"];
 
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
@@ -235,29 +256,68 @@ int main() {
           	// Previous path's end s and d values
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
-            cout <<"x: "<<car.x<<" y: "<<car.y<< " s: "<<car.s<< " d: " <<car.d<<" yaw: "<<car.yaw<<" speed: "<<car.v<<endl;
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
-
-            // 12 cars in sensor_fusion
-            for(int i =0; i< sensor_fusion.size(); i++)
-            {
-              cout <<"id: "<< sensor_fusion[i][0]<<" ";
-              cout <<"x: "<< sensor_fusion[i][1]<<" ";
-              cout <<"y: "<< sensor_fusion[i][2]<<" ";
-              cout <<"vx: "<< sensor_fusion[i][3]<<" ";
-              cout <<"vy: "<< sensor_fusion[i][4]<<" ";
-              cout <<"s: "<< sensor_fusion[i][5]<<" ";
-              cout <<"d: "<< sensor_fusion[i][6]<<endl;
-
-            }
             
+            // Generate prediction of the detected vehicles
+            vector<vector<int>> pred_vehicles = generate_prediction(sensor_fusion);
+            
+            car.update_state(j[1]["x"], j[1]["y"], j[1]["s"], j[1]["d"], j[1]["speed"], j[1]["yaw"], pred_vehicles);
+            
+            // 12 cars in sensor_fusion
+//            for(int i =0; i< sensor_fusion.size(); i++)
+//            {
+//              cout <<"id: "<< sensor_fusion[i][0]<<" ";
+//              cout <<"x: "<< sensor_fusion[i][1]<<" ";
+//              cout <<"y: "<< sensor_fusion[i][2]<<" ";
+//              cout <<"vx: "<< sensor_fusion[i][3]<<" ";
+//              cout <<"vy: "<< sensor_fusion[i][4]<<" ";
+//              cout <<"s: "<< sensor_fusion[i][5]<<" ";
+//              cout <<"d: "<< sensor_fusion[i][6]<<endl;
+//
+//            }
+
+// Behavior planning pseudo code
+//def transition_function(predictions, current_fsm_state, current_pose, cost_functions, weights):
+//    # only consider states which can be reached from current FSM state.
+//    possible_successor_states = successor_states(current_fsm_state)
+//
+//    # keep track of the total cost of each state.
+//    costs = []
+//    for state in possible_successor_states:
+//        # generate a rough idea of what trajectory we would
+//        # follow IF we chose this state.
+//        trajectory_for_state = generate_trajectory(state, current_pose, predictions)
+//
+//        # calculate the "cost" associated with that trajectory.
+//        cost_for_state = 0
+//        for i in range(len(cost_functions)) :
+//            # apply each cost function to the generated trajectory
+//            cost_function = cost_functions[i]
+//            cost_for_cost_function = cost_function(trajectory_for_state, predictions)
+//
+//            # multiply the cost by the associated weight
+//            weight = weights[i]
+//            cost_for_state += weight * cost_for_cost_function
+//            costs.append({'state' : state, 'cost' : cost_for_state})
+//
+//    # Find the minimum cost state.
+//    best_next_state = None
+//    min_cost = 9999999
+//    for i in range(len(possible_successor_states)):
+//        state = possible_successor_states[i]
+//        cost  = costs[i]
+//        if cost < min_cost:
+//            min_cost = cost
+//            best_next_state = state 
+//
+//    return best_next_state
+    
           	json msgJson;
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
-            car.update_state(sensor_fusion);
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = car.next_x_vals;
@@ -312,7 +372,41 @@ int main() {
 }
 
 
-
+//double pos_x;
+//          double pos_y;
+//          double angle;
+//          int path_size = previous_path_x.size();
+//
+//          for(int i = 0; i < path_size; i++)
+//          {
+//              next_x_vals.push_back(previous_path_x[i]);
+//              next_y_vals.push_back(previous_path_y[i]);
+//          }
+//
+//          if(path_size == 0)
+//          {
+//              pos_x = car.x;
+//              pos_y = car.y;
+//              angle = deg2rad(car.yaw);
+//          }
+//          else
+//          {
+//              pos_x = previous_path_x[path_size-1];
+//              pos_y = previous_path_y[path_size-1];
+//
+//              double pos_x2 = previous_path_x[path_size-2];
+//              double pos_y2 = previous_path_y[path_size-2];
+//              angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
+//          }
+//
+//          double dist_inc = 0.5;
+//          for(int i = 0; i < 50-path_size; i++)
+//          {    
+//              next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
+//              next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
+//              pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
+//              pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
+//          }
 
 
 

@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <deque> 
 
 using namespace std;
 
@@ -27,7 +28,7 @@ class Vehicle
 
   int lane;
   double x,y;
-  double s,d, yaw;
+  double s,d,yaw;
   double v;
   double prev_v;
   double a;
@@ -39,10 +40,10 @@ class Vehicle
 
   vector<double> next_x_vals;
   vector<double> next_y_vals;
-  vector<double> acc_list;
-
-  string state;
-
+  deque<double> acc_list;
+  
+  string behavior_state;
+  
   /**
   * Constructor
   */
@@ -53,37 +54,15 @@ class Vehicle
   * Destructor
   */
   virtual ~Vehicle();
-
-  void update_state(vector<vector<int> > predictions);
-
-  void configure(vector<int> road_data);
-
-  string display();
-
-  void increment(int dt);
-
+  int get_lane(double d);
+  void update_state(double x, double y, double s, double d, double v, double yaw, const vector<vector<int>> &pred_vehicles);
+  void realize_state(const vector<double> &predicted_state);
+  void do_prediction(vector<double> &result, string behavior_state, double dt_s);
   vector<int> state_at(int t);
   
   double deg2rad(double x) { return x * M_PI / 180; }
   double rad2deg(double x) { return x * 180 / M_PI; }
   
-  bool collides_with(Vehicle other, int at_time);
-
-  collider will_collide_with(Vehicle other, int timesteps);
-
-  void realize_state(map<int, vector<vector<int> > > predictions);
-
-  void realize_constant_speed();
-
-  int _max_accel_for_lane(map<int, vector<vector<int> > > predictions, int lane, int s);
-
-  void realize_keep_lane(map<int, vector<vector<int> > > predictions);
-
-  void realize_lane_change(map<int, vector<vector<int> > > predictions, string direction);
-
-  void realize_prep_lane_change(map<int, vector<vector<int> > > predictions, string direction);
-
-  vector<vector<int> > generate_predictions(int horizon);
 };
 
 #endif

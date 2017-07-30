@@ -1489,12 +1489,13 @@
       <File Name="src/Eigen-3.3/CMakeLists.txt"/>
       <File Name="src/Eigen-3.3/README.md"/>
     </VirtualDirectory>
-    <File Name="src/json.hpp"/>
     <File Name="src/vehicle.cpp"/>
     <File Name="src/classifier.h"/>
     <File Name="src/classifier.cpp"/>
     <File Name="src/vehicle.h"/>
     <File Name="src/main.cpp"/>
+    <File Name="src/cost_functions.cpp"/>
+    <File Name="src/cost_functions.h"/>
   </VirtualDirectory>
   <Description/>
   <Dependencies/>
@@ -1502,6 +1503,7 @@
     <File Name="CMakeLists.txt"/>
     <File Name="cmakepatch.txt"/>
     <File Name="README.md"/>
+    <File Name="src/json.hpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="data">
     <File Name="data/highway_map.csv"/>
