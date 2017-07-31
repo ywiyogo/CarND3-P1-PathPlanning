@@ -5,6 +5,10 @@
 #include <map>
 #include <math.h>
 #include <string>
+#include "Eigen-3.3/Eigen/Core"
+#include "Eigen-3.3/Eigen/LU" // for Eigen inverse()
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 /**
  * Initializes Vehicle
  */
@@ -111,12 +115,61 @@ void Vehicle::do_prediction(vector<double> &result, string behavior_state, doubl
 
 void Vehicle::realize_state(const vector<double> &predicted_state)
 {
+  //inc = v / 50
   double dist_inc = predicted_state[2] / 50.;
+  
   cout<<"Distance inc: "<<dist_inc<<" yaw: "<<predicted_state[4]<<endl;
   for(int i = 0; i < 50; i++) {
     this->next_x_vals.push_back(this->x + (dist_inc * i) * cos(deg2rad(predicted_state[4])));
     this->next_y_vals.push_back(this->y + (dist_inc * i) * sin(deg2rad(predicted_state[4])));
   }
+}
+
+/*
+    Calculate the Jerk Minimizing Trajectory that connects the initial state
+    to the final state in time T.
+
+    INPUTS
+
+    start - the vehicles start location given as a length three array
+        corresponding to initial values of [s, s_dot, s_double_dot]
+
+    end   - the desired end state for vehicle. Like "start" this is a
+        length three array.
+
+    T     - The duration, in seconds, over which this maneuver should occur.
+
+    OUTPUT 
+    an array of length 6, each value corresponding to a coefficent in the polynomial 
+    s(t) = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5
+
+    EXAMPLE
+
+    > JMT( [0, 10, 0], [10, 10, 0], 1)
+    [0.0, 10.0, 0.0, 0.0, 0.0, 0.0]
+    */
+vector<double> jerk_min_trajectory(vector<double> start, vector<double> end, double T)
+{
+  MatrixXd A = MatrixXd(3, 3);
+  A << T * T * T, T * T * T * T, T * T * T * T * T,
+       3 * T * T, 4 * T * T * T, 5 * T * T * T * T,
+       6 * T, 12 * T * T, 20 * T * T * T;
+
+  MatrixXd B = MatrixXd(3, 1);
+  B << end[0] - (start[0] + start[1] * T + .5 * start[2] * T * T), 
+       end[1] - (start[1] + start[2] * T),
+       end[2] - start[2];
+
+  MatrixXd Ai = A.inverse();
+
+  MatrixXd C = Ai * B;
+
+  vector<double> result = { start[0], start[1], .5 * start[2] };
+  for(int i = 0; i < C.size(); i++) {
+    result.push_back(C.data()[i]);
+  }
+
+  return result;
 }
 
 // void Vehicle::update_state(map<int, vector<vector<int> > > predictions)
