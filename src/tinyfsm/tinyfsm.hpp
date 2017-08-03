@@ -23,7 +23,8 @@
 #define TINYFSM_HPP_INCLUDED
 
 #include <type_traits>
-
+#include <vector>
+using namespace std;
 namespace tinyfsm
 {
 
@@ -36,6 +37,7 @@ namespace tinyfsm
   struct FsmList<>
   {
     static void start() { }
+    static void get_coeffs(vector<double> &coeffs) { }
 
     template<typename E>
     static void dispatch(E const &) { }
@@ -49,7 +51,7 @@ namespace tinyfsm
       F::start();
       FsmList<FF...>::start();
     }
-
+    
     template<typename E>
     static void dispatch(E const & event) {
       // DBG("*** FsmList::dispatch() *** " << __PRETTY_FUNCTION__);
@@ -176,8 +178,13 @@ namespace tinyfsm
       // DBG("*** Fsm::start() *** " << __PRETTY_FUNCTION__);
       current_state->entry();
     }
-
     template<typename E>
+    static void get_coeffs(vector<double> &coeffs)
+    {
+      current_state->get_coeffs();
+    }
+
+    
     static void dispatch(E const & event) {
       // DBG("*** Fsm::dispatch() *** " << __PRETTY_FUNCTION__);
       current_state->react(event);

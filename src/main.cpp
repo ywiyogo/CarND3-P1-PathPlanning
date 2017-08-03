@@ -5,21 +5,21 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include "Eigen-3.3/Eigen/Core"
-#include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
-
-#include "vehicle.h"
+#include "helper.h"
+#include "sdvehicle.h"
+#include "prediction.h"
 
 using namespace std;
+using namespace Helper;
 
 // for convenience
 using json = nlohmann::json;
 
 // For converting back and forth between radians and degrees.
-constexpr double pi() { return M_PI; }
-double deg2rad(double x) { return x * pi() / 180; }
-double rad2deg(double x) { return x * 180 / pi(); }
+//constexpr double pi() { return M_PI; }
+//double deg2rad(double x) { return x * pi() / 180; }
+//double rad2deg(double x) { return x * 180 / pi(); }
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -75,7 +75,7 @@ int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector
 
 	double angle = abs(theta-heading);
 
-	if(angle > pi()/4)
+	if(angle > M_PI/4)
 	{
 		closestWaypoint++;
 	}
@@ -132,56 +132,31 @@ vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x
 	return {frenet_s,frenet_d};
 
 }
-// Transform from Frenet s,d coordinates to Cartesian x,y
-vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
-{
-  int prev_wp = -1;
 
-  while(s > maps_s[prev_wp + 1] && (prev_wp < (int)(maps_s.size() - 1))) {
-    prev_wp++;
-  }
-
-  int wp2 = (prev_wp + 1) % maps_x.size();
-
-  double heading = atan2((maps_y[wp2] - maps_y[prev_wp]), (maps_x[wp2] - maps_x[prev_wp]));
-  // the x,y,s along the segment
-  double seg_s = (s - maps_s[prev_wp]);
-
-  double seg_x = maps_x[prev_wp] + seg_s * cos(heading);
-  double seg_y = maps_y[prev_wp] + seg_s * sin(heading);
-
-  double perp_heading = heading - M_PI / 2;
-
-  double x = seg_x + d * cos(perp_heading);
-  double y = seg_y + d * sin(perp_heading);
-
-  return { x, y };
-}
 
 /*
  * Generate prediction of all detected vehicles on the right hand side
- * return []
+ * return [s,d,v]
  */ 
-vector<vector<int> > generate_prediction(const vector<vector<int> > &detected_vehicles, double dt_s=1)
-{
-  vector<vector<int> > veh_predictions = detected_vehicles;
-  double a = 1.0; //assumed a is 1m/s
-  
-  for(int i =0; i<detected_vehicles.size();i++)
-  {
-    double s = detected_vehicles[i][5];
-    double v = sqrt( pow(detected_vehicles[i][3],2) + pow(detected_vehicles[i][4],2) );
-    double pred_x = detected_vehicles[i][3] * dt_s; //x = vx*dt
-    double pred_y = detected_vehicles[i][4] * dt_s; //y = vy*dt
-    //vector<double> freenet = getFrenet(pred_x, pred_y, 0, map_waypoints_x, map_waypoints_y);
-    veh_predictions[i][1] = pred_x;
-    veh_predictions[i][2] = pred_y;
-    veh_predictions[i][5] = s + v*dt_s + a * dt_s * dt_s/2; //self.s + self.v * t + self.a * t * t / 2
-    //veh_predictions[i][6] = freenet[1];
-  }
-  return veh_predictions;
-}
-
+//vector<vector<int> > generate_prediction(const vector<vector<int> > &detected_vehicles, int steps =5)
+//{
+//  vector<vector<int> > veh_predictions = detected_vehicles;
+//  
+//  for(int i =0; i<detected_vehicles.size();i++)
+//  {
+//    double s = detected_vehicles[i][5];
+//    double v = sqrt( pow(detected_vehicles[i][3],2) + pow(detected_vehicles[i][4],2) );
+//    double pred_x = detected_vehicles[i][3] * dt_s; //x = vx*dt
+//    double pred_y = detected_vehicles[i][4] * dt_s; //y = vy*dt
+//    //vector<double> freenet = getFrenet(pred_x, pred_y, 0, map_waypoints_x, map_waypoints_y);
+//    veh_predictions[i][1] = pred_x;
+//    veh_predictions[i][2] = pred_y;
+//    veh_predictions[i][5] = s + v* dt_s ;
+//    veh_predictions[i][6] = freenet[1];
+//  }
+//  return veh_predictions;
+//}
+//
 int main() {
   uWS::Hub h;
 
@@ -218,10 +193,13 @@ int main() {
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
   }
-  Vehicle car;
-
-
-  h.onMessage([&car, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  SDVehicle sd_car;
+  Prediction prediction;
+  sd_car.set_map_waypoints_x(map_waypoints_x);
+  sd_car.set_map_waypoints_y(map_waypoints_y);
+  sd_car.set_map_waypoints_s(map_waypoints_s);
+  
+  h.onMessage([&sd_car, &prediction, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -259,12 +237,6 @@ int main() {
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
-            
-            // Generate prediction of the detected vehicles
-            vector<vector<int>> pred_vehicles = generate_prediction(sensor_fusion);
-            
-            car.update_state(j[1]["x"], j[1]["y"], j[1]["s"], j[1]["d"], j[1]["speed"], j[1]["yaw"], pred_vehicles);
-            
             // 12 cars in sensor_fusion
 //            for(int i =0; i< sensor_fusion.size(); i++)
 //            {
@@ -277,6 +249,25 @@ int main() {
 //              cout <<"d: "<< sensor_fusion[i][6]<<endl;
 //
 //            }
+
+            // Generate prediction of the detected vehicles
+            prediction.update_trajectories(sensor_fusion);
+            //prediction.print_curr_trajectories();
+            if(prediction.trajectories_.size() >1)
+            {
+              EgoVehicle ego;
+              ego.x=j[1]["x"];
+              ego.y=j[1]["y"];
+              ego.s=j[1]["s"];
+              ego.d=j[1]["d"];
+              ego.v_ms=double(j[1]["speed"])*0.44704; //convert MPH to m/s!!
+              ego.yaw=j[1]["yaw"];
+              sd_car.update_ego(ego, previous_path_x, previous_path_y);
+              sd_car.update_env(prediction.do_prediction());
+            }
+            
+            
+
 
 // Behavior planning pseudo code
 //def transition_function(predictions, current_fsm_state, current_pose, cost_functions, weights):
@@ -313,20 +304,22 @@ int main() {
 //            best_next_state = state 
 //
 //    return best_next_state
-    
-          	json msgJson;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+            json msgJson;
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-          	msgJson["next_x"] = car.next_x_vals;
-          	msgJson["next_y"] = car.next_y_vals;
+            vector<double> next_x_vals;
+            vector<double> next_y_vals;
+            
 
-          	auto msg = "42[\"control\","+ msgJson.dump()+"]";
+            // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
-          	//this_thread::sleep_for(chrono::milliseconds(1000));
-          	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+            msgJson["next_x"] = sd_car.next_x_vals;
+            msgJson["next_y"] = sd_car.next_y_vals;
+
+            auto msg = "42[\"control\"," + msgJson.dump() + "]";
+
+            // this_thread::sleep_for(chrono::milliseconds(1000));
+            ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
         }
       } else {

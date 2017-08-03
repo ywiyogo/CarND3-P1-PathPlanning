@@ -7,7 +7,7 @@ add_definitions(-std=c++11)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp src/vehicle.cpp src/classifier.cpp src/cost_functions.cpp src/behaviorfsm.cpp)
+set(sources src/main.cpp src/vehicle.cpp src/sdvehicle.cpp src/prediction.cpp src/helper.cpp src/behaviorfsm.cpp)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
 
@@ -16,7 +16,7 @@ include_directories(/usr/local/include)
 include_directories(/usr/local/opt/openssl/include)
 include_directories(src/Eigen-3.3)
 include_directories(src/tinyfsm)
-
+include_directories(src/spline)
 link_directories(/usr/local/lib)
 link_directories(/usr/local/opt/openssl/lib)
 link_directories(/usr/local/Cellar/libuv/1.11.0/lib)

@@ -1489,13 +1489,23 @@
       <File Name="src/Eigen-3.3/CMakeLists.txt"/>
       <File Name="src/Eigen-3.3/README.md"/>
     </VirtualDirectory>
-    <File Name="src/vehicle.cpp"/>
-    <File Name="src/classifier.h"/>
-    <File Name="src/classifier.cpp"/>
-    <File Name="src/vehicle.h"/>
     <File Name="src/main.cpp"/>
-    <File Name="src/cost_functions.cpp"/>
-    <File Name="src/cost_functions.h"/>
+    <VirtualDirectory Name="tinyfsm">
+      <File Name="src/tinyfsm/tinyfsm.hpp"/>
+    </VirtualDirectory>
+    <File Name="src/behaviorfsm.cpp"/>
+    <File Name="src/behaviorfsm.h"/>
+    <File Name="src/prediction.h"/>
+    <File Name="src/prediction.cpp"/>
+    <File Name="src/sdvehicle.h"/>
+    <File Name="src/sdvehicle.cpp"/>
+    <VirtualDirectory Name="spline">
+      <File Name="src/spline/spline.h"/>
+    </VirtualDirectory>
+    <File Name="src/vehicle.h"/>
+    <File Name="src/vehicle.cpp"/>
+    <File Name="src/helper.h"/>
+    <File Name="src/helper.cpp"/>
   </VirtualDirectory>
   <Description/>
   <Dependencies/>
@@ -1597,4 +1607,6 @@
       </Completion>
     </Configuration>
   </Settings>
+  <Dependencies Name="Debug"/>
+  <Dependencies Name="Release"/>
 </CodeLite_Project>
