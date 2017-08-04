@@ -211,115 +211,64 @@ int main() {
 
       auto s = hasData(data);
 
-      if (s != "") {
+      if(s != "") {
         auto j = json::parse(s);
 
         string event = j[0].get<string>();
 
-
-        if (event == "telemetry") {
+        if(event == "telemetry") {
           // j[1] is the data JSON object
 
-        	// Main car's localization Data
-//          	car.x = j[1]["x"];
-//          	car.y = j[1]["y"];
-//          	car.s = j[1]["s"];
-//          	car.d = j[1]["d"];
-//          	car.yaw = j[1]["yaw"];
-//          	car.v = j[1]["speed"];
+          // Main car's localization Data
+          //          	car.x = j[1]["x"];
+          //          	car.y = j[1]["y"];
+          //          	car.s = j[1]["s"];
+          //          	car.d = j[1]["d"];
+          //          	car.yaw = j[1]["yaw"];
+          //          	car.v = j[1]["speed"];
 
-          	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
-          	// Previous path's end s and d values
-          	double end_path_s = j[1]["end_path_s"];
-          	double end_path_d = j[1]["end_path_d"];
+          // Previous path data given to the Planner
+          auto previous_path_x = j[1]["previous_path_x"];
+          auto previous_path_y = j[1]["previous_path_y"];
+          // Previous path's end s and d values
+          double end_path_s = j[1]["end_path_s"];
+          double end_path_d = j[1]["end_path_d"];
 
-          	// Sensor Fusion Data, a list of all other cars on the same side of the road.
-          	auto sensor_fusion = j[1]["sensor_fusion"];
-            // 12 cars in sensor_fusion
-//            for(int i =0; i< sensor_fusion.size(); i++)
-//            {
-//              cout <<"id: "<< sensor_fusion[i][0]<<" ";
-//              cout <<"x: "<< sensor_fusion[i][1]<<" ";
-//              cout <<"y: "<< sensor_fusion[i][2]<<" ";
-//              cout <<"vx: "<< sensor_fusion[i][3]<<" ";
-//              cout <<"vy: "<< sensor_fusion[i][4]<<" ";
-//              cout <<"s: "<< sensor_fusion[i][5]<<" ";
-//              cout <<"d: "<< sensor_fusion[i][6]<<endl;
-//
-//            }
+          // Sensor Fusion Data, a list of all other cars on the same side of the road.
+          auto sensor_fusion = j[1]["sensor_fusion"];
 
-            // Generate prediction of the detected vehicles
-            prediction.update_trajectories(sensor_fusion);
-            //prediction.print_curr_trajectories();
-            if(prediction.trajectories_.size() >1)
-            {
-              EgoVehicle ego;
-              ego.x=j[1]["x"];
-              ego.y=j[1]["y"];
-              ego.s=j[1]["s"];
-              ego.d=j[1]["d"];
-              ego.v_ms=double(j[1]["speed"])*0.44704; //convert MPH to m/s!!
-              ego.yaw=j[1]["yaw"];
-              sd_car.update_ego(ego, previous_path_x, previous_path_y);
-              sd_car.update_env(prediction.do_prediction());
-            }
-            
-            
+          // Generate prediction of the detected vehicles
+          prediction.update_trajectories(sensor_fusion);
+          // prediction.print_curr_trajectories();
+          EgoVehicle ego;
+          ego.x = j[1]["x"];
+          ego.y = j[1]["y"];
+          ego.s = j[1]["s"];
+          ego.d = j[1]["d"];
+          ego.v_ms = double(j[1]["speed"]) * 0.44704; // convert MPH to m/s!!
+          ego.yaw = j[1]["yaw"];
+          
+          sd_car.update_ego(ego, previous_path_x, previous_path_y);
+          
+          if(prediction.trajectories_.size() > 2) {
 
+            sd_car.update_env(prediction.do_prediction());
+          }
 
-// Behavior planning pseudo code
-//def transition_function(predictions, current_fsm_state, current_pose, cost_functions, weights):
-//    # only consider states which can be reached from current FSM state.
-//    possible_successor_states = successor_states(current_fsm_state)
-//
-//    # keep track of the total cost of each state.
-//    costs = []
-//    for state in possible_successor_states:
-//        # generate a rough idea of what trajectory we would
-//        # follow IF we chose this state.
-//        trajectory_for_state = generate_trajectory(state, current_pose, predictions)
-//
-//        # calculate the "cost" associated with that trajectory.
-//        cost_for_state = 0
-//        for i in range(len(cost_functions)) :
-//            # apply each cost function to the generated trajectory
-//            cost_function = cost_functions[i]
-//            cost_for_cost_function = cost_function(trajectory_for_state, predictions)
-//
-//            # multiply the cost by the associated weight
-//            weight = weights[i]
-//            cost_for_state += weight * cost_for_cost_function
-//            costs.append({'state' : state, 'cost' : cost_for_state})
-//
-//    # Find the minimum cost state.
-//    best_next_state = None
-//    min_cost = 9999999
-//    for i in range(len(possible_successor_states)):
-//        state = possible_successor_states[i]
-//        cost  = costs[i]
-//        if cost < min_cost:
-//            min_cost = cost
-//            best_next_state = state 
-//
-//    return best_next_state
+          json msgJson;
 
-            json msgJson;
+          vector<double> next_x_vals;
+          vector<double> next_y_vals;
 
-            vector<double> next_x_vals;
-            vector<double> next_y_vals;
-            
+          // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
-            // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          msgJson["next_x"] = sd_car.next_x_vals;
+          msgJson["next_y"] = sd_car.next_y_vals;
 
-            msgJson["next_x"] = sd_car.next_x_vals;
-            msgJson["next_y"] = sd_car.next_y_vals;
+          auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
-            auto msg = "42[\"control\"," + msgJson.dump() + "]";
-
-            // this_thread::sleep_for(chrono::milliseconds(1000));
-            ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+          // this_thread::sleep_for(chrono::milliseconds(1000));
+          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
         }
       } else {

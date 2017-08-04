@@ -21,7 +21,7 @@ class BehaviorFSM
 {
   public:
   BehaviorFSM();
-  BehaviorFSM(const string& name);
+  BehaviorFSM(const string& name, int lane);
   virtual ~BehaviorFSM();
 
   virtual void
@@ -29,12 +29,10 @@ class BehaviorFSM
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory) = 0;
 
   protected:
-  int lane_;
   string name_;
-  virtual void entry(SDVehicle& sdcar);
-  int get_lane(double d);
+  int goallane_;
   void set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state);
-  
+  void generate_trajectory(SDVehicle& sdcar,  double goal_s_dot, double goal_s_dotdot, double goal_d, double goal_d_dot, vector<double> &s_coeffs, vector<double> &d_coeffs);
   void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff);
   
   void find_closest_cars_inlane(double ego_s,
@@ -50,8 +48,8 @@ class BehaviorFSM
 class Ready : public BehaviorFSM
 {
   public:
-  Ready(const string& name)
-      : BehaviorFSM(name){};
+  Ready(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~Ready();
 };
@@ -59,8 +57,8 @@ class Ready : public BehaviorFSM
 class KeepLane : public BehaviorFSM
 {
   public:
-  KeepLane(const string& name)
-      : BehaviorFSM(name){};
+  KeepLane(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void entry(SDVehicle& sdcar);
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~KeepLane();
@@ -69,8 +67,8 @@ class KeepLane : public BehaviorFSM
 class LCL : public BehaviorFSM
 {
   public:
-  LCL(const string& name)
-      : BehaviorFSM(name){};
+  LCL(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~LCL();
 };
@@ -78,8 +76,8 @@ class LCL : public BehaviorFSM
 class PrepareLCL : public BehaviorFSM
 {
   public:
-  PrepareLCL(const string& name)
-      : BehaviorFSM(name){};
+  PrepareLCL(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~PrepareLCL();
 };
@@ -87,8 +85,8 @@ class PrepareLCL : public BehaviorFSM
 class LCR : public BehaviorFSM
 {
   public:
-  LCR(const string& name)
-      : BehaviorFSM(name){};
+  LCR(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~LCR();
 };
@@ -96,8 +94,8 @@ class LCR : public BehaviorFSM
 class PrepareLCR : public BehaviorFSM
 {
   public:
-  PrepareLCR(const string& name)
-      : BehaviorFSM(name){};
+  PrepareLCR(const string& name, int lane)
+      : BehaviorFSM(name, lane){};
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~PrepareLCR();
 };

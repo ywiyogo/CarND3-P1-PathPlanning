@@ -19,11 +19,11 @@ SDVehicle::SDVehicle()
     : Vehicle()
     , s_dot(0)
     , d_dot(0)
-    , s_dotdot(0)
-    , d_dotdot(0)
+    , s_dotdot(0.)
+    , d_dotdot(0.)
     , prev_v(0)
     , jerk(0)
-    , behaviorfsm_(new Ready("Ready"))
+    , behaviorfsm_(new Ready("Ready",-1))
     , map_wp_x(0.)
     , map_wp_y(0.)
     , map_wp_s(0.)
@@ -103,49 +103,7 @@ void SDVehicle::update_ego(EgoVehicle &ego, const vector<double> &prev_path_x, c
 void SDVehicle::update_env(const map<int,deque<Vehicle>> &vehicle_trajectories)
 {
 
-  // Lane check
-//  vector<string> behaviorlist = { "KL", "LCL", "LCR", "PLCL", "PLCR" };
-//  if(get_lane(d) == 2) {
-//    behaviorlist.erase(behaviorlist.begin() + 2);
-//    behaviorlist.erase(behaviorlist.begin() + 4);
-//  } else if(get_lane(d) == 0) {
-//    behaviorlist.erase(behaviorlist.begin() + 1);
-//    behaviorlist.erase(behaviorlist.begin() + 3);
-//  }
-//
-//  // do a prediction and calculate cost for all states
-//  vector<vector<double> > possible_states;
-//  double mincost = 9999.;
-//  vector<deque<Vehicle>> lane_veh_trajectories;
-//  
-//  for(int i = 0; i < behaviorlist.size(); i++) {
-//    //s, d, v, a
-//    // get the vehicles in the same target lane
-//    
-//    vector<deque<Vehicle>> inlane_veh_trajectories;
-//    for(const auto &iter_veh: vehicle_trajectories) {
-//      if(get_lane(iter_veh.second.back().d) == get_lane(this->d))
-//      {
-//        inlane_veh_trajectories.push_back(iter_veh.second);
-//      }
-//    }
-//    double cost;
-//    cost = CostFunctions::calc_behaviorcost({s,d,v}, inlane_veh_trajectories);
-//
-//    if (cost < mincost){
-//      mincost = cost;
-//      trigger_mincost.name = behaviorlist[i];
-//      lane_veh_trajectories = inlane_veh_trajectories;
-//    }
-//
-//    // append to the vector
-//  }
-
   behaviorfsm_->update_env(*this, vehicle_trajectories);
-
-  //trigger event of the behavior
-  
-//  realize_state(possible_states[min_i]);
 
 }
 void SDVehicle::set_map_waypoints_x(const vector<double>& mwaypoints_x)

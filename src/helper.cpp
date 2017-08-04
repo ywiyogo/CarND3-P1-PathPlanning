@@ -12,6 +12,22 @@ double Helper::rad2deg(double x)
   return x * 180 / M_PI;
 }
 
+/*
+ * 0<d<4 is lane 0
+   4<d<8 is lane 1
+   8<d<12 is lane 2
+ */
+int Helper::get_lane(double d)
+{
+  if(d < 4) {
+    return 0;
+  } else if(d < 8) {
+    return 1;
+  } else {
+    return 2;
+  }
+}
+
 double Helper::bc_speed_cost(double v)
 {
   // see lesson 4.11
