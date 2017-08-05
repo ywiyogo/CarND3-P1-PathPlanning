@@ -240,7 +240,8 @@ int main() {
           auto sensor_fusion = j[1]["sensor_fusion"];
 
           auto currtime = std::chrono::system_clock::now();
-          std::chrono::duration<double> dt = prev_time - currtime; 
+          std::chrono::duration<double> dt = currtime- prev_time; 
+          
           prev_time =std::chrono::system_clock::now();
           
           // Generate prediction of the detected vehicles
@@ -255,8 +256,26 @@ int main() {
           ego.yaw = j[1]["yaw"];
 
           sdcar.update_ego(ego, previous_path_x, previous_path_y);
-
+          
+//          for(auto const& iter : prediction.trajectories_) {
+//            printf("ID: %d, array: v, s, d\n", iter.first);
+//            double distance = fabs(iter.second.back().s - sdcar.s);
+//            for(int i=0; i<iter.second.size();i++)
+//            {
+//              printf("       %f, %f, %f, %f\n", distance, iter.second[i].v_ms, iter.second[i].s, iter.second[i].d);
+//            }
+//          }
+//          printf("--------------------------\n");
           map<int, deque<Vehicle> > others_prediction = prediction.do_prediction(dt.count());
+          
+//          for(auto const& iter : others_prediction) {
+//            printf("ID: %d, array: dist, v, s, d\n", iter.first);
+//            double distance = fabs(iter.second.back().s - sdcar.s);
+//            for(int i=0; i<iter.second.size();i++)
+//            {
+//              printf("       %f, %f, %f, %f\n", distance, iter.second[i].v_ms, iter.second[i].s, iter.second[i].d);
+//            }
+//          }
           
           //cout << "|  Lane 0  |  Lane 1  |  Lane 2  |" << endl;
           printf("|  Lane 0   |  Lane 1   |  Lane 2   |\n");
@@ -269,26 +288,21 @@ int main() {
             double distance = fabs(iter.second.back().s - sdcar.s);
             switch(lane) {
             case 0: {
-              if(distance < 10)
-                printf("|  %d:%.0f  |           |           |\n", iter.second.back().id, distance);
-                //cout << "|  " << iter.second.back().id << ": " << iter.second.back().v_ms << "  |          |          |"
-                     //<< endl;
+              if(distance < 40)
+                printf("|  %d:%.1f  |           |           |\n", iter.second.back().id, distance);
+
               
               break;
             }
             case 1: {
-              if(distance < 10)
-                printf("|           |  %d:%.0f  |           |\n", iter.second.back().id, distance);
-                //cout << "|          | " << iter.second.back().id << ": " << iter.second.back().v_ms << " |          |"
-                     //<< endl;
+              if(distance < 40)
+                printf("|           |  %d:%.1f  |           |\n", iter.second.back().id, distance);
+
               break;
             }
             case 2: {
-              if(distance < 10)
-                printf("|           |           |  %d:%.0f  |\n", iter.second.back().id, distance);
-//                cout << "|          |          | " << iter.second.back().id << ": " << iter.second.back().v_ms << " |"
-//                     << endl;
-//                     
+              if(distance < 40)
+                printf("|           |           |  %d:%.1f  |\n", iter.second.back().id, distance);                     
               break;
             }
             }
