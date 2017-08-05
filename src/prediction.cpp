@@ -1,6 +1,10 @@
 #include "prediction.h"
 #include <iostream>
 #include <math.h>
+#include "helper.h"
+
+using namespace Helper;
+
 Prediction::Prediction()
     : num_vehicles_(0)
 {
@@ -49,44 +53,47 @@ void Prediction::update_trajectories(const vector<vector<int> >& sensorfusion)
       deque<Vehicle> trajectory = { car };
       trajectories_[car.id] = trajectory;
     }
-    num_vehicles_ = sensorfusion.size();
   } else {
     for(int i = 0; i < sensorfusion.size(); i++) {
       Vehicle car;
       car.id = sensorfusion[i][0];
       car.s = sensorfusion[i][5];
       car.d = sensorfusion[i][6];
-      car.v_ms = sqrt( pow(sensorfusion[i][3],2) + pow(sensorfusion[i][4],2) ); //car.s - trajectories_[car.id][trajectories_[car.id].size() - 1].s;
-      if(trajectories_.count(car.id) == 1) {                 // id is exist
+      car.v_ms = sqrt(pow(sensorfusion[i][3], 2) +
+          pow(sensorfusion[i][4], 2));       // car.s - trajectories_[car.id][trajectories_[car.id].size() - 1].s;
+      if(trajectories_.find(car.id) == trajectories_.end()) { // id doesn't exist
+        cout << " -----------\n A new car id is detected !\n -------------" << endl;
+        deque<Vehicle> newtrajectory = { car };
+        trajectories_[car.id] = newtrajectory;
+
+      } else {                                               // new car id detected
         if(trajectories_[car.id].size() <= max_trajectory) { // max trajectory not exceeded
           trajectories_[car.id].push_back(car);
         } else { // delete old entry
           trajectories_[car.id].pop_front();
           trajectories_[car.id].push_back(car);
         }
-
-      } else { // new car id detected
-        cout<<" -----------\n A new car id is detected !\n -------------"<<endl;
-        deque<Vehicle> newtrajectory = { car };
-        trajectories_[car.id] = newtrajectory;
       }
     }
   }
+  num_vehicles_ = sensorfusion.size();
 }
 
-map<int, deque<Vehicle> > Prediction::do_prediction(int t_s)
+map<int, deque<Vehicle> > Prediction::do_prediction(int dt_s)
 {
   map<int, deque<Vehicle> > pred_trajectories = trajectories_;
+
   for(auto const& iter : trajectories_) {
     double avg_v = 0;
     for(int i = 0; i < iter.second.size(); i++) {
       avg_v += iter.second[i].v_ms;
     }
+
     avg_v = avg_v / iter.second.size();
     Vehicle predition_car;
     predition_car.id = iter.first;
     //predition_car.s = iter.second[iter.second.size() - 1].s + avg_v;
-    predition_car.s = iter.second.back().s + (iter.second.back().v_ms * t_s);
+    predition_car.s = iter.second.back().s + (iter.second.back().v_ms * dt_s);
     predition_car.d = iter.second.back().d; // assuming yaw = 0
     predition_car.v_ms = iter.second.back().v_ms;
     pred_trajectories[iter.first].push_back(predition_car);

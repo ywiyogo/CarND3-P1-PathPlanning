@@ -137,11 +137,11 @@ vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x
 /*
  * Generate prediction of all detected vehicles on the right hand side
  * return [s,d,v]
- */ 
+ */
 //vector<vector<int> > generate_prediction(const vector<vector<int> > &detected_vehicles, int steps =5)
 //{
 //  vector<vector<int> > veh_predictions = detected_vehicles;
-//  
+//
 //  for(int i =0; i<detected_vehicles.size();i++)
 //  {
 //    double s = detected_vehicles[i][5];
@@ -193,20 +193,22 @@ int main() {
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
   }
-  SDVehicle sd_car;
+  SDVehicle sdcar;
   Prediction prediction;
-  sd_car.set_map_waypoints_x(map_waypoints_x);
-  sd_car.set_map_waypoints_y(map_waypoints_y);
-  sd_car.set_map_waypoints_s(map_waypoints_s);
+  sdcar.set_map_waypoints_x(map_waypoints_x);
+  sdcar.set_map_waypoints_y(map_waypoints_y);
+  sdcar.set_map_waypoints_s(map_waypoints_s);
   
-  h.onMessage([&sd_car, &prediction, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  auto prev_time = chrono::system_clock::now();
+
+  h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
-    
+
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -237,6 +239,10 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
+          auto currtime = std::chrono::system_clock::now();
+          std::chrono::duration<double> dt = prev_time - currtime; 
+          prev_time =std::chrono::system_clock::now();
+          
           // Generate prediction of the detected vehicles
           prediction.update_trajectories(sensor_fusion);
           // prediction.print_curr_trajectories();
@@ -247,12 +253,49 @@ int main() {
           ego.d = j[1]["d"];
           ego.v_ms = double(j[1]["speed"]) * 0.44704; // convert MPH to m/s!!
           ego.yaw = j[1]["yaw"];
-          
-          sd_car.update_ego(ego, previous_path_x, previous_path_y);
-          
-          if(prediction.trajectories_.size() > 2) {
 
-            sd_car.update_env(prediction.do_prediction());
+          sdcar.update_ego(ego, previous_path_x, previous_path_y);
+
+          map<int, deque<Vehicle> > others_prediction = prediction.do_prediction(dt.count());
+          
+          //cout << "|  Lane 0  |  Lane 1  |  Lane 2  |" << endl;
+          printf("|  Lane 0   |  Lane 1   |  Lane 2   |\n");
+          for(auto const& iter : others_prediction) {
+            if(others_prediction.count(iter.first) >1)
+            {
+              cout<<"############### Error car id more than once! "<<iter.first<<endl;
+            }
+            int lane = get_lane(iter.second.back().d);
+            double distance = fabs(iter.second.back().s - sdcar.s);
+            switch(lane) {
+            case 0: {
+              if(distance < 10)
+                printf("|  %d:%.0f  |           |           |\n", iter.second.back().id, distance);
+                //cout << "|  " << iter.second.back().id << ": " << iter.second.back().v_ms << "  |          |          |"
+                     //<< endl;
+              
+              break;
+            }
+            case 1: {
+              if(distance < 10)
+                printf("|           |  %d:%.0f  |           |\n", iter.second.back().id, distance);
+                //cout << "|          | " << iter.second.back().id << ": " << iter.second.back().v_ms << " |          |"
+                     //<< endl;
+              break;
+            }
+            case 2: {
+              if(distance < 10)
+                printf("|           |           |  %d:%.0f  |\n", iter.second.back().id, distance);
+//                cout << "|          |          | " << iter.second.back().id << ": " << iter.second.back().v_ms << " |"
+//                     << endl;
+//                     
+              break;
+            }
+            }
+          }
+          if(prediction.trajectories_.size() > 1) {
+
+            sdcar.update_env(others_prediction, dt.count());
           }
 
           json msgJson;
@@ -262,12 +305,16 @@ int main() {
 
           // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
-          msgJson["next_x"] = sd_car.next_x_vals;
-          msgJson["next_y"] = sd_car.next_y_vals;
+          msgJson["next_x"] = sdcar.next_x_vals;
+          msgJson["next_y"] = sdcar.next_y_vals;
+
+
 
           auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
+
           // this_thread::sleep_for(chrono::milliseconds(1000));
+
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
         }
@@ -343,7 +390,7 @@ int main() {
 //
 //          double dist_inc = 0.5;
 //          for(int i = 0; i < 50-path_size; i++)
-//          {    
+//          {
 //              next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
 //              next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
 //              pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));

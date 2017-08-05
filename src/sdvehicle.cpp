@@ -27,9 +27,10 @@ SDVehicle::SDVehicle()
     , map_wp_x(0.)
     , map_wp_y(0.)
     , map_wp_s(0.)
+    , sim_delay(0.02)
 {
   cout<<"Debug10"<<endl;
-  
+
 }
 
 SDVehicle::~SDVehicle()
@@ -91,7 +92,7 @@ void SDVehicle::calc_best_trajectory(vector<double> start_s, vector<double> star
 
 void SDVehicle::realize_state(const vector<double>& predicted_state)
 {
-  
+
 }
 void SDVehicle::update_ego(EgoVehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y)
 {
@@ -100,10 +101,11 @@ void SDVehicle::update_ego(EgoVehicle &ego, const vector<double> &prev_path_x, c
 }
 
 // void SDVehicle::update_state(map<int, vector<vector<int> > > predictions)
-void SDVehicle::update_env(const map<int,deque<Vehicle>> &vehicle_trajectories)
+void SDVehicle::update_env(const map<int,deque<Vehicle>> &vehicle_trajectories, double dt)
 {
 
   behaviorfsm_->update_env(*this, vehicle_trajectories);
+  this->sim_delay = dt;
 
 }
 void SDVehicle::set_map_waypoints_x(const vector<double>& mwaypoints_x)
