@@ -34,8 +34,8 @@ class BehaviorFSM
   string name_;
   int goallane_;
   void set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state);
-  void generate_trajectory(SDVehicle& sdcar,  double goal_s_dot, double goal_s_dotdot, double goal_d, double goal_d_dot, vector<double> &s_coeffs, vector<double> &d_coeffs);
-  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff);
+  void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double dt = 1);
+  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, double dt);
 
   void find_closest_cars_inlane(double ego_s,
       const vector<deque<Vehicle> >& inlane_veh_trajectories,
