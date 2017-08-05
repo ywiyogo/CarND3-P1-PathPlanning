@@ -15,7 +15,7 @@ double rad2deg(double x);
 int get_lane(double d);
 double bc_speed_cost(double v);
 double bc_collision_cost(double s, double d, const vector<vector<int> >& pred_vehicles);
-
+void sort_coords(vector<double>& v1, vector<double>& v2);
 };
 
 #endif // HELPER_H

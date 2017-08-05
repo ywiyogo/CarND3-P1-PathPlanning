@@ -2,7 +2,6 @@
 #include <iostream>
 #include <math.h>
 
-
 double Helper::deg2rad(double x)
 {
   return x * M_PI / 180;
@@ -48,7 +47,6 @@ double Helper::bc_speed_cost(double v)
   return cost;
 }
 
-
 double Helper::bc_collision_cost(double s, double d, const vector<vector<int> >& pred_vehicles)
 {
   double cost = 0.;
@@ -69,3 +67,24 @@ double Helper::bc_collision_cost(double s, double d, const vector<vector<int> >&
   return cost;
 }
 
+void Helper::sort_coords(vector<double>& v1, vector<double>& v2)
+{
+  vector<vector<double>> vv;
+  int vsize = v1.size();
+  for(int i = 0; i < vsize; ++i) {
+    vector<double> vt = { v1[i], v2[i] };
+    vv.push_back(vt);
+  }
+
+  sort(vv.begin(), vv.end());
+
+  v1.clear();
+  v2.clear();
+  for(int i = 0; i < vsize; ++i) {
+    if(i > 0 && vv[i][0] == vv[i - 1][0]) {
+      continue;
+    }
+    v1.push_back(vv[i][0]);
+    v2.push_back(vv[i][1]);
+  }
+}

@@ -3,6 +3,7 @@
 #include <math.h>
 #include "helper.h"
 
+#define DEBUG 0
 using namespace Helper;
 
 Prediction::Prediction()
@@ -79,7 +80,7 @@ void Prediction::update_trajectories(const vector<vector<int> >& sensorfusion)
   num_vehicles_ = sensorfusion.size();
 }
 
-map<int, deque<Vehicle> > Prediction::do_prediction(int dt_s)
+map<int, deque<Vehicle> > Prediction::do_prediction(double dt_s)
 {
   map<int, deque<Vehicle> > pred_trajectories = trajectories_;
 
@@ -92,12 +93,18 @@ map<int, deque<Vehicle> > Prediction::do_prediction(int dt_s)
     avg_v = avg_v / iter.second.size();
     Vehicle predition_car;
     predition_car.id = iter.first;
-    //predition_car.s = iter.second[iter.second.size() - 1].s + avg_v;
+    
+#if DEBUG
+    printf("dt: %f, s old: %f s new: %f\n", dt_s, iter.second.back().s,
+        iter.second.back().s + (iter.second.back().v_ms * dt_s));
+#endif
+
+    // predition_car.s = iter.second[iter.second.size() - 1].s + avg_v;
     predition_car.s = iter.second.back().s + (iter.second.back().v_ms * dt_s);
     predition_car.d = iter.second.back().d; // assuming yaw = 0
     predition_car.v_ms = iter.second.back().v_ms;
     pred_trajectories[iter.first].push_back(predition_car);
   }
-  //print_trajectories(pred_trajectories);
+  // print_trajectories(pred_trajectories);
   return pred_trajectories;
 }
