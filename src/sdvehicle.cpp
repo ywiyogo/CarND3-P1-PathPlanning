@@ -6,21 +6,23 @@
 #include <math.h>
 #include <string>
 #include "behaviorfsm.h"
+#include "spline/spline.h"
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/LU" // for Eigen inverse()
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
+const double MAX_S_MAP = 6945.554;
 /**
  * Initializes SDVehicle
  */
 SDVehicle::SDVehicle()
     : Vehicle()
     , s_dot(0)
-    , d_dot(0)
-    , s_dotdot(0.)
-    , d_dotdot(0.)
+    , d_dot(-1)
+    , s_dotdot(-1)
+    , d_dotdot(-1)
     , prev_v(0)
     , jerk(0)
     , behaviorfsm_(new Ready("Ready",-1))
@@ -29,7 +31,6 @@ SDVehicle::SDVehicle()
     , map_wp_s(0.)
     , sim_delay(0.02)
 {
-  cout<<"Debug10"<<endl;
 
 }
 
@@ -120,6 +121,15 @@ void SDVehicle::set_map_waypoints_s(const vector<double>& mwaypoints_s)
 {
   this->map_wp_s = mwaypoints_s;
 }
+void SDVehicle::set_map_waypoints_dx(const vector<double>& mwaypoints_dx)
+{
+  this->map_wp_dx = mwaypoints_dx;
+}
+void SDVehicle::set_map_waypoints_dy(const vector<double>& mwaypoints_dy)
+{
+  this->map_wp_dy = mwaypoints_dy;
+}
+
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
 vector<double> SDVehicle::getXY(double s, double d)
@@ -145,4 +155,45 @@ vector<double> SDVehicle::getXY(double s, double d)
   double y = seg_y + d * sin(perp_heading);
 
   return { x, y };
+  // implementing the new getXY since the provided function doesn't work well
+  
+  //find the index of the s in the map(0 to 6945.554)
+//  vector<double> s_ranges, x_ranges, y_ranges;
+//  size_t m_size = map_wp_s.size();
+//  s= fmod(MAX_S_MAP_MAP + s, MAX_S_MAP_MAP);
+//  
+//  const vector<double>::iterator &upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
+//  int map_s_index = upper_iter - map_wp_s.begin() ;
+//  int prev_wp = map_s_index -1;
+//  
+//  //get the range between +-3 from the
+//  for(int i = -3; i < 5; i++) {
+//    
+//    size_t wp = (prev_wp + i + m_size) % m_size;
+//    double wp_s = map_wp_s[wp];
+//    
+//    x_ranges.push_back(map_wp_x[wp] + d * map_wp_dx[wp]);
+//    y_ranges.push_back(map_wp_y[wp] + d * map_wp_dy[wp]);
+//    
+//    //Dealing with the circle circuit
+//    if(prev_wp + i < 0) {
+//      wp_s -= MAX_S_MAP_MAP;
+//    } else if(prev_wp + i >= m_size) {
+//      wp_s += MAX_S_MAP_MAP;
+//    }
+//    s_ranges.push_back(wp_s);
+//  }
+//
+//  // Integrate spline to get the way curve by fitting s to x & y
+//  tk::spline spline_x, spline_y;
+//  double x,y;
+//  spline_x.set_points(s_ranges, x_ranges);
+//  spline_y.set_points(s_ranges, y_ranges);
+//
+//  x = spline_x(s);
+//  y = spline_y(s);
+//
+//  return {x, y};
+
+
 }

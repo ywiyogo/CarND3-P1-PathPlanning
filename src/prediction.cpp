@@ -46,33 +46,37 @@ void Prediction::update_trajectories(const vector<vector<int> >& sensorfusion)
 {
   if(num_vehicles_ == 0) {
     for(int i = 0; i < sensorfusion.size(); i++) {
-      Vehicle car;
-      car.id = sensorfusion[i][0];
-      car.s = sensorfusion[i][5];
-      car.d = sensorfusion[i][6];
-      car.v_ms = sqrt( pow(sensorfusion[i][3],2) + pow(sensorfusion[i][4],2) );
-      deque<Vehicle> trajectory = { car };
-      trajectories_[car.id] = trajectory;
+      if(sensorfusion[i][6] > 0) { // ignore invalid vahicles with negative d values such as -200
+        Vehicle car;
+        car.id = sensorfusion[i][0];
+        car.s = sensorfusion[i][5];
+        car.d = sensorfusion[i][6];
+        car.v_ms = sqrt(pow(sensorfusion[i][3], 2) + pow(sensorfusion[i][4], 2));
+        deque<Vehicle> trajectory = { car };
+        trajectories_[car.id] = trajectory;
+      }
     }
   } else {
     for(int i = 0; i < sensorfusion.size(); i++) {
-      Vehicle car;
-      car.id = sensorfusion[i][0];
-      car.s = sensorfusion[i][5];
-      car.d = sensorfusion[i][6];
-      car.v_ms = sqrt(pow(sensorfusion[i][3], 2) +
-          pow(sensorfusion[i][4], 2));       // car.s - trajectories_[car.id][trajectories_[car.id].size() - 1].s;
-      if(trajectories_.find(car.id) == trajectories_.end()) { // id doesn't exist
-        cout << " -----------\n A new car id is detected !\n -------------" << endl;
-        deque<Vehicle> newtrajectory = { car };
-        trajectories_[car.id] = newtrajectory;
+      if(sensorfusion[i][6] > 0) {
+        Vehicle car;
+        car.id = sensorfusion[i][0];
+        car.s = sensorfusion[i][5];
+        car.d = sensorfusion[i][6];
+        car.v_ms = sqrt(pow(sensorfusion[i][3], 2) +
+            pow(sensorfusion[i][4], 2)); // car.s - trajectories_[car.id][trajectories_[car.id].size() - 1].s;
+        if(trajectories_.find(car.id) == trajectories_.end()) { // id doesn't exist
+          cout << " -----------\n A new car id is detected !\n -------------" << endl;
+          deque<Vehicle> newtrajectory = { car };
+          trajectories_[car.id] = newtrajectory;
 
-      } else {                                               // new car id detected
-        if(trajectories_[car.id].size() <= max_trajectory) { // max trajectory not exceeded
-          trajectories_[car.id].push_back(car);
-        } else { // delete old entry
-          trajectories_[car.id].pop_front();
-          trajectories_[car.id].push_back(car);
+        } else {                                               // new car id detected
+          if(trajectories_[car.id].size() <= max_trajectory) { // max trajectory not exceeded
+            trajectories_[car.id].push_back(car);
+          } else { // delete old entry
+            trajectories_[car.id].pop_front();
+            trajectories_[car.id].push_back(car);
+          }
         }
       }
     }

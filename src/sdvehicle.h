@@ -60,13 +60,17 @@ class SDVehicle:public Vehicle
   void update_ego(EgoVehicle &egovehicle, const vector<double> &prev_path_x, const vector<double> &prev_path_y);
   void update_env(const map<int, deque<Vehicle> >& vehicle_trajectories, double dt);
   void realize_state(const vector<double>& predicted_state);
+  
   void set_map_waypoints_x(const vector<double> &mwaypoints_x);
   void set_map_waypoints_y(const vector<double> &mwaypoints_y);
   void set_map_waypoints_s(const vector<double> &mwaypoints_s);
+  void set_map_waypoints_dx(const vector<double> &mwaypoints_dx);
+  void set_map_waypoints_dy(const vector<double> &mwaypoints_dy);
+  
   vector<double> jerk_min_trajectory(vector<double> start, vector<double> end, double T);
   void calc_best_trajectory(vector<double> start_s, vector<double> start_d, int target_veh_id, vector<double> delta, int T, vector<vector<double>> predictions);
   vector<double> getXY(double s, double d);
-  vector<double> getXY(double s, double d, vector<double> maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
+
   
   
   //  void do_prediction(vector<double> &result, string behavior_state, double dt_s);
@@ -77,6 +81,8 @@ class SDVehicle:public Vehicle
   vector<double> map_wp_x;
   vector<double> map_wp_y;
   vector<double> map_wp_s;
+  vector<double> map_wp_dx;
+  vector<double> map_wp_dy;
 };
 
 #endif

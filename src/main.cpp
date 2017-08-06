@@ -198,6 +198,8 @@ int main() {
   sdcar.set_map_waypoints_x(map_waypoints_x);
   sdcar.set_map_waypoints_y(map_waypoints_y);
   sdcar.set_map_waypoints_s(map_waypoints_s);
+  sdcar.set_map_waypoints_dx(map_waypoints_dx);
+  sdcar.set_map_waypoints_dy(map_waypoints_dy);
   
   auto prev_time = chrono::system_clock::now();
 
@@ -307,10 +309,9 @@ int main() {
             }
             }
           }
-          if(prediction.trajectories_.size() > 1) {
 
-            sdcar.update_env(others_prediction, dt.count());
-          }
+          sdcar.update_env(others_prediction, dt.count());
+          
 
           json msgJson;
 

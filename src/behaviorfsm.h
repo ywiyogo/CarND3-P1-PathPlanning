@@ -33,6 +33,7 @@ class BehaviorFSM
   protected:
   string name_;
   int goallane_;
+  double suggest_acc_;
   void set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state);
   void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double dt = 1);
   void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, double dt);
