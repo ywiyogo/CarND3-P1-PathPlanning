@@ -86,16 +86,8 @@ vector<double> SDVehicle::jerk_min_trajectory(vector<double> start, vector<doubl
   return result;
 }
 
-void SDVehicle::calc_best_trajectory(vector<double> start_s, vector<double> start_d, int target_veh_id, vector<double> delta, int T, vector<vector<double>> predictions)
-{
 
-}
-
-void SDVehicle::realize_state(const vector<double>& predicted_state)
-{
-
-}
-void SDVehicle::update_ego(EgoVehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y)
+void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y)
 {
   behaviorfsm_->update_ego(*this, ego, prev_path_x, prev_path_y);
 

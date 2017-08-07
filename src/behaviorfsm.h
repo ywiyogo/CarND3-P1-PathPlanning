@@ -26,23 +26,51 @@ class BehaviorFSM
   BehaviorFSM(const string& name, int lane);
   virtual ~BehaviorFSM();
 
-  virtual void
-  update_ego(SDVehicle& sdcar, EgoVehicle& ego, const vector<double>& prev_path_x, const vector<double>& prev_path_y);
+  /*
+  * Self driving car state update
+  */
+  virtual void update_ego(SDVehicle& sdcar, Vehicle& ego, const vector<double>& prev_path_x, const vector<double>& prev_path_y);
+  /*
+  * Current environment measurements update
+  */
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory) = 0;
 
   protected:
-  string name_;
-  int goallane_;
-  double suggest_acc_;
-  void set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state);
-  void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double dt = 1);
-  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, double dt);
 
+  /*
+  * 
+  */
+  void set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state);
+
+  /*
+  * Generate a trajectory for the next prediction steps
+  */
+  void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double dt = 1);
+
+  /*
+  * Perform the motion trajectory from JMT
+  */
+  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, double dt);
+  
+  /*
+  * Find the closest front and behind vehicles from a given list of vehicles e in a lane
+  */
   void find_closest_cars_inlane(double ego_s,
       const vector<deque<Vehicle> >& inlane_veh_trajectories,
       deque<Vehicle>& res_frontcar,
       deque<Vehicle>& res_rearcar);
+
+  /*
+  * Calculate the cost of the given set of vehicle of a lane (can be different lane)
+  */
   double calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicle> >& inlane_veh_trajectories);
+
+  // Name of the FSM
+  string name_;
+  // Goal lane of current state
+  int goallane_;
+  // Suggested acceleration of current state
+  double suggest_acc_;
 };
 
 //-----------------------------------
@@ -62,7 +90,7 @@ class KeepLane : public BehaviorFSM
   public:
   KeepLane(const string& name, int lane)
       : BehaviorFSM(name, lane){};
-  virtual void entry(SDVehicle& sdcar);
+
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory);
   virtual ~KeepLane();
 };

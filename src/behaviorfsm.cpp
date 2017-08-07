@@ -49,7 +49,7 @@ void BehaviorFSM::set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state)
 
 // Base Implementation
 void BehaviorFSM::update_ego(SDVehicle& sdcar,
-    EgoVehicle& ego,
+    Vehicle& ego,
     const vector<double>& prev_path_x,
     const vector<double>& prev_path_y)
 {
@@ -334,15 +334,7 @@ void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajecto
 KeepLane::~KeepLane()
 {
 }
-void KeepLane::entry(SDVehicle& sdcar)
-{
-  //  cout << "Enter" << this->name_ << endl;
-  //  double end_s = sdcar.s + max_dist;
-  //  vector<double> start_s = { sdcar.s, sdcar.s_dot, sdcar.s_dotdot };
-  //  vector<double> goal_s = { end_s, sdcar.s_dot, sdcar.s_dotdot };
-  //  vector<double> s_coeff = sdcar.jerk_min_trajectory(start_s, goal_s, PRED_TIME);
-  //  realize_behavior(sdcar, s_coeff);
-}
+
 void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectories)
 {
   //    # only consider states which can be reached from current FSM state.
@@ -578,10 +570,7 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
         mincost[1] = itercost.second;
       }
     }
-    if(mincost[1] > 2.5) {
-      acc = MAX_ACC/4;
-      cout << "Break" << endl;
-    }
+
     printf("Cost 0: %f, cost 1: %f", costs[0], costs[1]);
     // whatever the mincost is the robot still drive forward with less vel and acc
     generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
@@ -622,10 +611,6 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
         mincost[0] = itercost.first;
         mincost[1] = itercost.second;
       }
-    }
-    if(mincost[1] > 2.5) {
-      acc = MAX_ACC/4;
-      cout << "Break" << endl;
     }
     // whatever the mincost is the robot still drive forward, but with slower velocity and acc
     generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs,JMT_T);
@@ -697,8 +682,6 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   switch(currlane) {
   // Robot on lane 0 praparing to lane 1
   case 0: {
-    vector<double> mincost = { -1, 9 }; //(lane, cost)
-
     for(const auto& iter_veh : cars_trajectories) {
       if(get_lane(iter_veh.second.back().d) == currlane) {
         lane_trajectories_0.push_back(iter_veh.second);
@@ -716,10 +699,7 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
         mincost[1] = itercost.second;
       }
     }
-    if(mincost[1] > 2.5) {
-      acc = MAX_ACC/4;
-      cout << "Break" << endl;
-    }
+
     // whatever the mincost is the robot still drive forward
     generate_trajectory(sdcar, this->suggest_acc_, sdcar.d ,s_coeffs, d_coeffs, JMT_T);
 
@@ -759,10 +739,7 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
         mincost[1] = itercost.second;
       }
     }
-    if(mincost[1] > 2.5) {
-      acc = MAX_ACC/4;
-      cout << "Break" << endl;
-    }
+
     // whatever the mincost is the robot still drive forward, but with slower velocity and acc
     generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
 

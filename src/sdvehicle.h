@@ -25,9 +25,10 @@ struct EgoVehicle{
   double yaw;
 };
 
-// Implementing State Pattern
+// Implementing State Design Pattern
 class BehaviorFSM;
 
+//inherited from Vehicle class due to several same attributes
 class SDVehicle:public Vehicle
 {
   friend class BehaviorFSM;
@@ -49,7 +50,6 @@ class SDVehicle:public Vehicle
   /**
   * Constructor
   */
-
   SDVehicle();
   SDVehicle(int lane, double s, double v);
   /**
@@ -57,10 +57,13 @@ class SDVehicle:public Vehicle
   */
   virtual ~SDVehicle();
 
-  void update_ego(EgoVehicle &egovehicle, const vector<double> &prev_path_x, const vector<double> &prev_path_y);
-  void update_env(const map<int, deque<Vehicle> >& vehicle_trajectories, double dt);
-  void realize_state(const vector<double>& predicted_state);
+  // update the self driving car state
+  void update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y);
   
+  //update measurements of the environment
+  void update_env(const map<int, deque<Vehicle> >& vehicle_trajectories, double dt);
+  
+  // Copy the map waypoints
   void set_map_waypoints_x(const vector<double> &mwaypoints_x);
   void set_map_waypoints_y(const vector<double> &mwaypoints_y);
   void set_map_waypoints_s(const vector<double> &mwaypoints_s);
@@ -68,13 +71,12 @@ class SDVehicle:public Vehicle
   void set_map_waypoints_dy(const vector<double> &mwaypoints_dy);
   
   vector<double> jerk_min_trajectory(vector<double> start, vector<double> end, double T);
-  void calc_best_trajectory(vector<double> start_s, vector<double> start_d, int target_veh_id, vector<double> delta, int T, vector<vector<double>> predictions);
+
+/*
+* Transform Frenet point to the (x,y) point in Cartesian coordinate
+*/
   vector<double> getXY(double s, double d);
 
-  
-  
-  //  void do_prediction(vector<double> &result, string behavior_state, double dt_s);
-  vector<int> state_at(int t);
 
   private:
   BehaviorFSM* behaviorfsm_;

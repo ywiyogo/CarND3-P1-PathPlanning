@@ -249,7 +249,7 @@ int main() {
           // Generate prediction of the detected vehicles
           prediction.update_trajectories(sensor_fusion);
           // prediction.print_curr_trajectories();
-          EgoVehicle ego;
+          Vehicle ego;
           ego.x = j[1]["x"];
           ego.y = j[1]["y"];
           ego.s = j[1]["s"];
