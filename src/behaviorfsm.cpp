@@ -53,105 +53,8 @@ void BehaviorFSM::update_ego(SDVehicle& sdcar,
     const vector<double>& prev_path_x,
     const vector<double>& prev_path_y)
 {
-  // updated car states
-  sdcar.x = ego.x;
-  sdcar.y = ego.y;
-  if(sdcar.s == -1) {
-    sdcar.s_dot = 0;
-    sdcar.s_dotdot = 0.;
-  }
-  else{
-    double cur_s_dot = ego.s - sdcar.s;
-    sdcar.s_dotdot = cur_s_dot - sdcar.s_dot;
-    sdcar.s_dot = cur_s_dot;
-    
-  }
-  if(sdcar.d == -1) {
-    sdcar.d_dot = 0;
-    sdcar.d_dotdot =0;
-  }else{
-    double cur_d_dot = ego.d - sdcar.d;
-    sdcar.d_dotdot = cur_d_dot - sdcar.d_dot;
-    sdcar.d_dot = cur_d_dot;
-  }
-  
-  sdcar.v_ms = ego.v_ms;
-  sdcar.s = ego.s;
-  sdcar.d = ego.d;
-  sdcar.a = (sdcar.v_ms - sdcar.prev_v) / sdcar.sim_delay;
-  sdcar.prev_v = sdcar.v_ms;
-  sdcar.yaw = ego.yaw;
-  sdcar.acc_list.push_back(sdcar.a);
-  double jerk = 0;
-  if(sdcar.sim_delay > 0.){
-    int interval = 10;//(int)(1. / sdcar.sim_delay);
-    if(sdcar.acc_list.size() >= interval)
-    {
-      for(int i = 0; i < sdcar.acc_list.size(); i++) {
-        jerk += sdcar.acc_list[i];
-      }
-      jerk = jerk / sdcar.acc_list.size();
-      sdcar.jerk = jerk;
-      sdcar.acc_list.pop_front();
-    }
-    else{
-      printf("Interval: %d, Acc size: %d\n", interval, (int)(sdcar.acc_list.size()));
-    }
-    
-  }
-  cout << "x: " << sdcar.x << " y: " << sdcar.y << " s: " << sdcar.s << " d: " << sdcar.d << " yaw: " << sdcar.yaw
-       << " speed: " << sdcar.v_ms << endl;
-  cout << "s_dot: " << sdcar.s_dot << " s_dotdot: " << sdcar.s_dotdot << " a: " << sdcar.a << " jerk: " << sdcar.jerk
-       << endl;
-  cout << "--------------------------------------------" << endl;
-  // Clear the waypoints to prevent lag and appending the old one
-  sdcar.next_x_vals.clear();
-  sdcar.next_y_vals.clear();
 }
 
-void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coeff, const vector<double>& d_coeff, double dt)
-{
-  vector<double> XY, sp_XY, waypointsX, waypointsY;
-
-  // cout << "s coeffs: ";
-  //  for(int i = 0; i < s_coeff.size(); i++) {
-  //     cout << s_coeff[i] << " ";
-  //  }
-  // cout << endl;
-  double t = 0.;
-
-  while(t < dt) {
-    double s_t = s_coeff[0] + s_coeff[1] * t + s_coeff[2] * t * t + s_coeff[3] * t * t * t +
-        s_coeff[4] * t * t * t * t + s_coeff[5] * t * t * t * t * t;
-    if(!d_coeff.empty()) {
-      double d_t = d_coeff[0] + d_coeff[1] * t + d_coeff[2] * t * t + d_coeff[3] * t * t * t +
-          d_coeff[4] * t * t * t * t + d_coeff[5] * t * t * t * t * t;
-      XY = sdcar.getXY(s_t, d_t);
-    } else {
-      XY = sdcar.getXY(s_t, sdcar.d);
-    }
-//    waypointsX.push_back(XY[0]);
-//    waypointsY.push_back(XY[1]);
-    sdcar.next_x_vals.push_back(XY[0]);
-    sdcar.next_y_vals.push_back(XY[1]);
-#if 0
-    cout << "t,s: (" << t << ", " << s_t << ") ";
-    cout << " x,y: (" << XY[0] << ", " << XY[1] << ")" << endl;
-#endif
-
-    t += SIM_dT;
-  }
-  //sort waypoint XY before pass to spline
-//  sort_coords(waypointsX, waypointsY);
-//
-//  // create a spline
-//  sp.set_points(waypointsX, waypointsY);
-//  for(int i=0; i < waypointsX.size(); i++) {
-//    double x = waypointsX[i];
-//    sdcar.next_x_vals.push_back(x);
-//    sdcar.next_y_vals.push_back(sp(x));
-//  }
-}
 
 /*
  * ego_car(s, d, v)
@@ -275,9 +178,11 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
   
 
   sstart = { sdcar.s, sdcar.s_dot, sdcar.s_dotdot };
-
+  //do not multiply with the dt but with the simulation delay
   goal_s = sdcar.s + acc*dt*dt;
+  
   double goal_sdot = min(acc*dt, double(MAX_VEL));
+  printf("given acc: %f, acc*dt: %f, v: %f\n", acc, acc*dt, goal_sdot);
   double goal_sdotdot = acc;
 
   sgoal = { goal_s, goal_sdot, goal_sdotdot };
@@ -286,11 +191,61 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
   dstart = { sdcar.d, sdcar.d_dot, sdcar.d_dotdot };
   dgoal = { goal_d, 0, 0 };
   d_coeffs = sdcar.jerk_min_trajectory(dstart, dgoal, dt);
-  printf("  T:%f, Start s:%f, sdot: %f, sdotdot: %f, d: %f \n", sdcar.sim_delay, sdcar.s, sdcar.s_dot, sdcar.s_dotdot, sdcar.d);
-  printf("  T:%f, Goal s:%f, sdot: %f, sdotdot: %f, d: %f \n", dt, goal_s, goal_sdot, goal_sdotdot, goal_d);
-  
+  printf("  dt:%f, Start s:%f, sdot: %f, sdotdot: %f, d: %f \n", sdcar.sim_delay, sdcar.s, sdcar.s_dot, sdcar.s_dotdot, sdcar.d);
+  printf("   T:%f,  Goal s:%f, sdot: %f, sdotdot: %f, d: %f \n", dt, goal_s, goal_sdot, goal_sdotdot, goal_d);
+  printf("s_coeffs: ");
+  for(int i =0; i< s_coeffs.size();i++)
+  {
+    printf("%d: %f ", i, s_coeffs[i]);
+  }
+  printf("\n");
   realize_behavior(sdcar, s_coeffs, d_coeffs, dt);
 }
+
+void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coeff, const vector<double>& d_coeff, double dt)
+{
+  vector<double> XY, sp_XY, waypointsX, waypointsY;
+
+  // cout << "s coeffs: ";
+  //  for(int i = 0; i < s_coeff.size(); i++) {
+  //     cout << s_coeff[i] << " ";
+  //  }
+  // cout << endl;
+  double t = 0.;
+
+  while(t < dt) {
+    double s_t = s_coeff[0] + s_coeff[1] * t + s_coeff[2] * t * t + s_coeff[3] * t * t * t +
+        s_coeff[4] * t * t * t * t + s_coeff[5] * t * t * t * t * t;
+    if(!d_coeff.empty()) {
+      double d_t = d_coeff[0] + d_coeff[1] * t + d_coeff[2] * t * t + d_coeff[3] * t * t * t +
+          d_coeff[4] * t * t * t * t + d_coeff[5] * t * t * t * t * t;
+      XY = sdcar.getXY(s_t, d_t);
+    } else {
+      XY = sdcar.getXY(s_t, sdcar.d);
+    }
+//    waypointsX.push_back(XY[0]);
+//    waypointsY.push_back(XY[1]);
+    sdcar.next_x_vals.push_back(XY[0]);
+    sdcar.next_y_vals.push_back(XY[1]);
+#if 0
+    cout << "t,s: (" << t << ", " << s_t << ") ";
+    cout << " x,y: (" << XY[0] << ", " << XY[1] << ")" << endl;
+#endif
+
+    t += SIM_dT;
+  }
+  //sort waypoint XY before pass to spline
+//  sort_coords(waypointsX, waypointsY);
+//
+//  // create a spline
+//  sp.set_points(waypointsX, waypointsY);
+//  for(int i=0; i < waypointsX.size(); i++) {
+//    double x = waypointsX[i];
+//    sdcar.next_x_vals.push_back(x);
+//    sdcar.next_y_vals.push_back(sp(x));
+//  }
+}
+
 
 //--------------------------------------------------------
 // Behaviour State Definitions
@@ -341,7 +296,7 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
   //    possible_successor_states = successor_states(current_fsm_state)
   int currlane = get_lane(sdcar.d);
   double acc= MAX_ACC;
-  vector<double> s_coeffs, start_s, goal_s;
+  vector<double> s_coeffs, d_coeffs, start_s, goal_s;
   map<int, double> costs;             //(lane, cost)
   vector<double> mincost = { -1, 9 }; //(lane, cost)
   vector<deque<Vehicle> > lane_trajectories_0, lane_trajectories_1, lane_trajectories_2;
@@ -422,24 +377,24 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
 #endif
     // 3. generate straight trajectory
 
-    vector<double> s_coeffs, d_coeffs;
+
     generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
 
 
     // 4. set new state if the cost says to move
-    switch(int(mincost[0])) {
-    case 0:
-
-      set_behavior_state(sdcar, new PrepareLCL("PrepareLCL", 1));
-      break;
-    case 2:
-      set_behavior_state(sdcar, new PrepareLCR("PrepareLCR", 1));
-      break;
-    default:
-#ifdef DEBUG
-      cout << "Keep lane..." << endl;
-#endif
-    }
+//    switch(int(mincost[0])) {
+//    case 0:
+//
+//      set_behavior_state(sdcar, new PrepareLCL("PrepareLCL", 1));
+//      break;
+//    case 2:
+//      set_behavior_state(sdcar, new PrepareLCR("PrepareLCR", 1));
+//      break;
+//    default:
+//#ifdef DEBUG
+//      cout << "Keep lane..." << endl;
+//#endif
+//    }
     break;
   }
 

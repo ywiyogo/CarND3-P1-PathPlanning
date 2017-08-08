@@ -257,7 +257,7 @@ int main() {
           ego.v_ms = double(j[1]["speed"]) * 0.44704; // convert MPH to m/s!!
           ego.yaw = j[1]["yaw"];
 
-          sdcar.update_ego(ego, previous_path_x, previous_path_y);
+          sdcar.update_ego(ego, previous_path_x, previous_path_y, dt.count());
           
 //          for(auto const& iter : prediction.trajectories_) {
 //            printf("ID: %d, array: v, s, d\n", iter.first);

@@ -87,18 +87,75 @@ vector<double> SDVehicle::jerk_min_trajectory(vector<double> start, vector<doubl
 }
 
 
-void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y)
+void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y, double dt)
 {
-  behaviorfsm_->update_ego(*this, ego, prev_path_x, prev_path_y);
+    // updated car states
+  this->x = ego.x;
+  this->y = ego.y;
+  this->sim_delay=dt;
+  if(this->s == -1) {
+    this->s_dot = 0;
+    this->s_dotdot = 0.;
+  }
+  else{
+    double cur_s_dot = (ego.s - this->s)/dt;
+    this->s_dotdot = (cur_s_dot - this->s_dot)/dt;
+    this->s_dot = cur_s_dot;
+    
+  }
+  if(this->d == -1) {
+    this->d_dot = 0;
+    this->d_dotdot =0;
+  }else{
+    double cur_d_dot = (ego.d - this->d)/dt;
+    this->d_dotdot = (cur_d_dot - this->d_dot)/dt;
+    this->d_dot = cur_d_dot;
+  }
+  
+  this->v_ms = ego.v_ms;
+  this->s = ego.s;
+  this->d = ego.d;
+  this->a = (this->v_ms - this->prev_v) / dt;
+  this->prev_v = this->v_ms;
+  this->yaw = ego.yaw;
+  this->acc_list.push_back(this->a);
+  double jerk = 0;
+  if(this->sim_delay > 0.){
+    int interval = 10;//(int)(1. / this->sim_delay);
+    if(this->acc_list.size() >= interval)
+    {
+      for(int i = 0; i < this->acc_list.size(); i++) {
+        jerk += this->acc_list[i];
+      }
+      jerk = jerk / this->acc_list.size();
+      this->jerk = jerk;
+      this->acc_list.pop_front();
+    }
+    else{
+      printf("Interval: %d, Acc size: %d\n", interval, (int)(this->acc_list.size()));
+    }
+    
+  }
+  cout << "----------------------------------------------------------" << endl;
+  cout << "x: " << this->x << " y: " << this->y << " s: " << this->s << " d: " << this->d << " yaw: " << this->yaw
+       << " speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk<<endl;
+  cout << "s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
+  cout << "----------------------------------------------------------" << endl;
+  // Clear the waypoints to prevent lag and appending the old one
+  this->next_x_vals.clear();
+  this->next_y_vals.clear();
 
 }
 
 // void SDVehicle::update_state(map<int, vector<vector<int> > > predictions)
 void SDVehicle::update_env(const map<int,deque<Vehicle>> &vehicle_trajectories, double dt)
 {
-
-  behaviorfsm_->update_env(*this, vehicle_trajectories);
   this->sim_delay = dt;
+  behaviorfsm_->update_env(*this, vehicle_trajectories);
+  if(dt>.5){
+    printf("WARNING, delay is %f s", dt);
+  } 
+  
 
 }
 void SDVehicle::set_map_waypoints_x(const vector<double>& mwaypoints_x)

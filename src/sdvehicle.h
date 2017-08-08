@@ -58,7 +58,7 @@ class SDVehicle:public Vehicle
   virtual ~SDVehicle();
 
   // update the self driving car state
-  void update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y);
+  void update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y, double dt);
   
   //update measurements of the environment
   void update_env(const map<int, deque<Vehicle> >& vehicle_trajectories, double dt);
