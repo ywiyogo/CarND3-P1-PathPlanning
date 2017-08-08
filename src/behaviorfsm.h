@@ -45,12 +45,12 @@ class BehaviorFSM
   /*
   * Generate a trajectory for the next prediction steps
   */
-  void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double dt = 1);
+  void generate_trajectory(SDVehicle& sdcar, double acc, double goal_d, vector<double> &s_coeffs, vector<double> &d_coeffs, double T = 2);
 
   /*
   * Perform the motion trajectory from JMT
   */
-  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, double dt);
+  void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, int steps = 40);
   
   /*
   * Find the closest front and behind vehicles from a given list of vehicles e in a lane

@@ -29,28 +29,40 @@ def JMT(start, end, T):
     return alphas
 
 
-sstart=[124.833900, 0.005005, 0.083501]
-sgoal=[147.333900, 15.000000, 10.000000]
+sstart=[128.07, 1.21, 0.45]#[124.833900, 0.005005, 0.083501]
+sgoal=[140.07, 20.00, 9.00]#[147.333900, 15.000000, 10.000000]
 
-T=1.5
-Coeffs = JMT(sstart, sgoal, T)
+Ts=[2, 3, 9.56]
+fig = plt.figure()
 
-Coeffs[0] = 0  #uncomment to start the position from 0
+axes = [fig.add_subplot(131), fig.add_subplot(132), fig.add_subplot(133)]
 
-print("coeffs: ", Coeffs)
-C=Coeffs[::-1]
-print(C)
-s = np.poly1d(C)
-v = s.deriv()
-a = v.deriv()
-x = np.linspace(0, T+0.2, 50)
-y = s(x)
-y1 = v(x)
-y2= a(x)
-plt.title("JMT")
-plt.plot(x, y, label='pos')
-plt.plot(x, y1, label='vel')
-plt.plot(x, y2, label='acc')
-plt.legend(loc='upper left')
-plt.grid()
+for i,T in enumerate(Ts):
+    Coeffs = JMT(sstart, sgoal, T)
+
+    Coeffs[0] = 0  #uncomment to start the position from 0
+
+    print("coeffs: ", Coeffs)
+    C=Coeffs[::-1]
+    print(C)
+    s = np.poly1d(C)
+    v = s.deriv()
+    a = v.deriv()
+    x = np.linspace(0, max(Ts)+0.1, 50)
+    y = s(x)
+    y1 = v(x)
+    y2= a(x)
+    axes[i].plot(x, y, label='pos')
+    axes[i].plot(x, y1, label='vel')
+    axes[i].plot(x, y2, label='acc')
+    axes[i].legend(loc='upper right')
+    axes[i].set_ylim([-25,100])
+    axes[i].set_xlim([0,max(Ts)])
+    title = "JMT T= "+ str(T)
+    axes[i].set_title(title)
+    axes[i].set_xlabel('T')
+    axes[i].set_ylabel('val')
+    axes[i].grid(linestyle=":")
+fig.tight_layout()
+
 plt.show()

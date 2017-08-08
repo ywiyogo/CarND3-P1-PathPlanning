@@ -244,7 +244,7 @@ int main() {
           auto currtime = std::chrono::system_clock::now();
           std::chrono::duration<double> dt = currtime- prev_time; 
           
-          prev_time =std::chrono::system_clock::now();
+          
           
           // Generate prediction of the detected vehicles
           prediction.update_trajectories(sensor_fusion);
@@ -327,7 +327,7 @@ int main() {
 
           auto msg = "42[\"control\"," + msgJson.dump() + "]";
 
-
+          prev_time =std::chrono::system_clock::now();
           // this_thread::sleep_for(chrono::milliseconds(1000));
 
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

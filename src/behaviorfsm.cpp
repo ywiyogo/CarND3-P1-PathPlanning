@@ -9,13 +9,13 @@ using namespace Helper;
 
 const int horizon_t = 1;
 const int PRED_TIME = 1;
-const int MAX_VEL = 22;     // m/s
+const int MAX_VEL = 20;     // m/s
 const int MAX_JERK = 10;    // in m/s3
-const int MAX_ACC = 10;     // in m/s2
+const int MAX_ACC = 9;     // in m/s2
 const int DIST_BUFFER = 30; // in m
 const double V_BUFFER = 5;
 const double SIM_dT = 0.02; // 0.02s
-const double JMT_T = 1.5; //in s for JMT
+const double JMT_T = 3; //in s for JMT
 
 double max_dist = MAX_VEL * PRED_TIME;
 //-----------------------------------------
@@ -165,7 +165,7 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
     double goal_d,
     vector<double>& s_coeffs,
     vector<double>& d_coeffs,
-    double dt)
+    double T)
 {
   cout << "Generate trajectory" << endl;
   if(s_coeffs.size() != 0)
@@ -175,34 +175,43 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
 
   vector<double> sstart, sgoal, dstart, dgoal;
   double goal_s;
-  
+  if(sdcar.sim_delay>T){
+    T = sdcar.sim_delay;
+  }
 
   sstart = { sdcar.s, sdcar.s_dot, sdcar.s_dotdot };
-  //do not multiply with the dt but with the simulation delay
-  goal_s = sdcar.s + acc*dt*dt;
+  double ds = acc*T*T;
+  if(ds >80)
+  {
+    ds = 80;
+  }
+    
+  goal_s = sdcar.s + ds;
   
-  double goal_sdot = min(acc*dt, double(MAX_VEL));
-  printf("given acc: %f, acc*dt: %f, v: %f\n", acc, acc*dt, goal_sdot);
+  double goal_sdot = min(acc*T, double(MAX_VEL));
+  printf("given acc: %f, acc*T: %f, v: %f\n", acc, acc*T, goal_sdot);
   double goal_sdotdot = acc;
 
   sgoal = { goal_s, goal_sdot, goal_sdotdot };
-  s_coeffs = sdcar.jerk_min_trajectory(sstart, sgoal, dt);
+  s_coeffs = sdcar.jerk_min_trajectory(sstart, sgoal, T);
 
   dstart = { sdcar.d, sdcar.d_dot, sdcar.d_dotdot };
   dgoal = { goal_d, 0, 0 };
-  d_coeffs = sdcar.jerk_min_trajectory(dstart, dgoal, dt);
-  printf("  dt:%f, Start s:%f, sdot: %f, sdotdot: %f, d: %f \n", sdcar.sim_delay, sdcar.s, sdcar.s_dot, sdcar.s_dotdot, sdcar.d);
-  printf("   T:%f,  Goal s:%f, sdot: %f, sdotdot: %f, d: %f \n", dt, goal_s, goal_sdot, goal_sdotdot, goal_d);
+  d_coeffs = sdcar.jerk_min_trajectory(dstart, dgoal, T);
+  printf("  dt:%.2f, Start s, sdot, sdotdot:%.2f, %.2f, %.2f, d: %.2f \n", sdcar.sim_delay, sdcar.s, sdcar.s_dot, sdcar.s_dotdot, sdcar.d);
+  printf("   T:%.2f,  Goal s, sdot, sdotdot:%.2f, %.2f, %.2f, d: %.2f \n", T, goal_s, goal_sdot, goal_sdotdot, goal_d);
   printf("s_coeffs: ");
   for(int i =0; i< s_coeffs.size();i++)
   {
     printf("%d: %f ", i, s_coeffs[i]);
   }
   printf("\n");
-  realize_behavior(sdcar, s_coeffs, d_coeffs, dt);
+  int steps=max(sdcar.sim_delay, T) / SIM_dT;
+
+  realize_behavior(sdcar, s_coeffs, d_coeffs, max(steps,100));
 }
 
-void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coeff, const vector<double>& d_coeff, double dt)
+void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coeff, const vector<double>& d_coeff, int steps)
 {
   vector<double> XY, sp_XY, waypointsX, waypointsY;
 
@@ -212,8 +221,9 @@ void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coe
   //  }
   // cout << endl;
   double t = 0.;
+  double t_max = SIM_dT * steps;
+  while(t < t_max) {
 
-  while(t < dt) {
     double s_t = s_coeff[0] + s_coeff[1] * t + s_coeff[2] * t * t + s_coeff[3] * t * t * t +
         s_coeff[4] * t * t * t * t + s_coeff[5] * t * t * t * t * t;
     if(!d_coeff.empty()) {

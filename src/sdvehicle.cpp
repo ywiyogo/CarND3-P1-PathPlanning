@@ -93,6 +93,7 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
   this->x = ego.x;
   this->y = ego.y;
   this->sim_delay=dt;
+  double ds = ego.s - this->s;
   if(this->s == -1) {
     this->s_dot = 0;
     this->s_dotdot = 0.;
@@ -139,7 +140,7 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
   cout << "----------------------------------------------------------" << endl;
   cout << "x: " << this->x << " y: " << this->y << " s: " << this->s << " d: " << this->d << " yaw: " << this->yaw
        << " speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk<<endl;
-  cout << "s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
+  cout << "ds: "<<ds<<" s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
   cout << "----------------------------------------------------------" << endl;
   // Clear the waypoints to prevent lag and appending the old one
   this->next_x_vals.clear();
