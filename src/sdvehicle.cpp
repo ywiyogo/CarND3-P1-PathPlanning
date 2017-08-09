@@ -94,37 +94,41 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
   this->x = ego.x;
   this->y = ego.y;
   if(prev_path_size <2)
-  { 
+  {
     double prev_ref_x = ego.x - cos(ego.yaw);
     double prev_ref_y = ego.y - sin(ego.yaw);
-    
+
     this->global_traj_x_.push_back(prev_ref_x);
     this->global_traj_x_.push_back(ego.x);
-    
+
     this->global_traj_y_.push_back(prev_ref_y);
     this->global_traj_y_.push_back(ego.y);
-    
+
   }
   else{
+    printf("Prev path more than 2: %d", prev_path_x.size());
     this->x = prev_path_x[prev_path_size-1];
     this->y = prev_path_y[prev_path_size-1];
     double prev_ref_x = prev_path_x[prev_path_size-2];
     double prev_ref_y = prev_path_y[prev_path_size-2];
-    ego.yaw = atan2(this->y-prev_ref_y, this->x-prev_ref_x);
-    
+    ego.yaw = atan2(this->y - prev_ref_y, this->x - prev_ref_x);
+
     this->global_traj_x_.push_back(prev_ref_x);
     this->global_traj_x_.push_back(this->x);
-    
+
     this->global_traj_y_.push_back(prev_ref_y);
     this->global_traj_y_.push_back(this->y);
-    
+
   }
+
+  this->next_x_vals.clear();
+  this->next_y_vals.clear();
   for(int i=0; i< prev_path_x.size();i++)
   {
-    next_x_vals.push_back(prev_path_x[i]);
-    next_y_vals.push_back(prev_path_y[i]);
+    this->next_x_vals.push_back(prev_path_x[i]);
+    this->next_y_vals.push_back(prev_path_y[i]);
   }
-  
+
   // updated car states
 
   this->sim_delay=dt;
@@ -137,7 +141,7 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
     double cur_s_dot = (ego.s - this->s)/dt;
     this->s_dotdot = (cur_s_dot - this->s_dot)/dt;
     this->s_dot = cur_s_dot;
-    
+
   }
   if(this->d == -1) {
     this->d_dot = 0;
@@ -147,7 +151,7 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
     this->d_dotdot = (cur_d_dot - this->d_dot)/dt;
     this->d_dot = cur_d_dot;
   }
-  
+
   this->v_ms = ego.v_ms;
   this->s = ego.s;
   this->d = ego.d;
@@ -170,16 +174,14 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
     else{
       printf("Interval: %d, Acc size: %d\n", interval, (int)(this->acc_list.size()));
     }
-    
+
   }
   cout << "----------------------------------------------------------" << endl;
   cout << "x: " << this->x << " y: " << this->y << " s: " << this->s << " d: " << this->d << " yaw: " << this->yaw
        << " speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk<<endl;
-  cout << "ds: "<<ds<<" s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
+  cout << "dt: "<<this->sim_delay<<" ds: "<<ds<<" s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
   cout << "----------------------------------------------------------" << endl;
-  // Clear the waypoints to prevent lag and appending the old one
-  this->next_x_vals.clear();
-  this->next_y_vals.clear();
+
 
 }
 
@@ -187,11 +189,13 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
 void SDVehicle::update_env(const map<int,deque<Vehicle>> &vehicle_trajectories, double dt)
 {
   this->sim_delay = dt;
-  behaviorfsm_->update_env(*this, vehicle_trajectories);
+  if(this->prev_path_size < 6){
+    behaviorfsm_->update_env(*this, vehicle_trajectories);
+  }
   if(dt>.5){
     printf("WARNING, delay is %f s", dt);
-  } 
-  
+  }
+
 
 }
 void SDVehicle::set_map_waypoints_x(const vector<double>& mwaypoints_x)
@@ -241,25 +245,25 @@ vector<double> SDVehicle::getXY(double s, double d)
 
   return { x, y };
   // implementing the new getXY since the provided function doesn't work well
-  
+
   //find the index of the s in the map(0 to 6945.554)
 //  vector<double> s_ranges, x_ranges, y_ranges;
 //  size_t m_size = map_wp_s.size();
 //  s= fmod(MAX_S_MAP_MAP + s, MAX_S_MAP_MAP);
-//  
+//
 //  const vector<double>::iterator &upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
 //  int map_s_index = upper_iter - map_wp_s.begin() ;
 //  int prev_wp = map_s_index -1;
-//  
+//
 //  //get the range between +-3 from the
 //  for(int i = -3; i < 5; i++) {
-//    
+//
 //    size_t wp = (prev_wp + i + m_size) % m_size;
 //    double wp_s = map_wp_s[wp];
-//    
+//
 //    x_ranges.push_back(map_wp_x[wp] + d * map_wp_dx[wp]);
 //    y_ranges.push_back(map_wp_y[wp] + d * map_wp_dy[wp]);
-//    
+//
 //    //Dealing with the circle circuit
 //    if(prev_wp + i < 0) {
 //      wp_s -= MAX_S_MAP_MAP;

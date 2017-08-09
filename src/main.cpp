@@ -231,7 +231,7 @@ int main() {
   sdcar.set_map_waypoints_s(map_waypoints_s);
   sdcar.set_map_waypoints_dx(map_waypoints_dx);
   sdcar.set_map_waypoints_dy(map_waypoints_dy);
-  
+
   auto prev_time = chrono::system_clock::now();
 
   h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
@@ -272,11 +272,11 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
-          
-          
+
+
           auto currtime = std::chrono::system_clock::now();
-          std::chrono::duration<double> dt = currtime- prev_time; 
-          
+          std::chrono::duration<double> dt = currtime- prev_time;
+
           // prediction.print_curr_trajectories();
           Vehicle ego;
           ego.x = j[1]["x"];
@@ -285,23 +285,20 @@ int main() {
           ego.d = j[1]["d"];
           ego.v_ms = double(j[1]["speed"]) * 0.44704; // convert MPH to m/s!!
           ego.yaw = deg2rad(j[1]["yaw"]);
-          
+
           vector<double> traj_x, traj_y;
-          
+
           // Get the last couple points for the starting reference points
           double ref_x = ego.x;
           double ref_y = ego.y;
-          
-          // if the previous path almost empty, get the current pose
-          
-          
-          
-          
 
-          
+          // if the previous path almost empty, get the current pose
+
+
+
           // Generate prediction of the detected vehicles
           prediction.update_trajectories(sensor_fusion);
-          
+
 
           sdcar.update_ego(ego, traj_x, traj_y, dt.count());
 //          for(auto const& iter : prediction.trajectories_) {
@@ -314,7 +311,7 @@ int main() {
 //          }
 //          printf("--------------------------\n");
           map<int, deque<Vehicle> > others_prediction = prediction.do_prediction(dt.count());
-          
+
 //          for(auto const& iter : others_prediction) {
 //            printf("ID: %d, array: dist, v, s, d\n", iter.first);
 //            double distance = fabs(iter.second.back().s - sdcar.s);
@@ -323,7 +320,7 @@ int main() {
 //              printf("       %f, %f, %f, %f\n", distance, iter.second[i].v_ms, iter.second[i].s, iter.second[i].d);
 //            }
 //          }
-          
+
           //cout << "|  Lane 0  |  Lane 1  |  Lane 2  |" << endl;
           printf("|  Lane 0   |  Lane 1   |  Lane 2   |\n");
           for(auto const& iter : others_prediction) {
@@ -338,7 +335,7 @@ int main() {
               if(distance < 40)
                 printf("|  %d:%.1f  |           |           |\n", iter.second.back().id, distance);
 
-              
+
               break;
             }
             case 1: {
@@ -349,15 +346,14 @@ int main() {
             }
             case 2: {
               if(distance < 40)
-                printf("|           |           |  %d:%.1f  |\n", iter.second.back().id, distance);                     
+                printf("|           |           |  %d:%.1f  |\n", iter.second.back().id, distance);
               break;
             }
             }
           }
 
-          //sdcar.update_env(others_prediction, dt.count());
-          
-          double dest_v= 49;
+          sdcar.update_env(others_prediction, dt.count());
+
 
           json msgJson;
 
@@ -366,10 +362,10 @@ int main() {
 
           // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           // Add the previous path
-          
-          
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+
+
+          msgJson["next_x"] = sdcar.next_x_vals;
+          msgJson["next_y"] = sdcar.next_y_vals;
 
 
 
