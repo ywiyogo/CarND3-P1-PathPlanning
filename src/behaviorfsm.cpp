@@ -14,9 +14,9 @@ const int MAX_JERK = 10;    // in m/s3
 const int MAX_ACC = 9;     // in m/s2
 const int DIST_BUFFER = 30; // in m
 const double V_BUFFER = 5;
-const double SIM_dT = 0.02; // 0.02s
-const double JMT_T = 3; //in s for JMT
-
+const double SIM_dt = 0.02; // 0.02s
+const double JMT_T = 2; //in s for JMT
+const int STEPS = 50;
 double max_dist = MAX_VEL * PRED_TIME;
 //-----------------------------------------
 // Abstract Class
@@ -175,24 +175,25 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
 
   vector<double> sstart, sgoal, dstart, dgoal;
   double goal_s;
-  if(sdcar.sim_delay>T){
-    T = sdcar.sim_delay;
-  }
+//  if(sdcar.sim_delay>T){
+//    T = sdcar.sim_delay;
+//  }
 
   sstart = { sdcar.s, sdcar.s_dot, sdcar.s_dotdot };
   double ds = acc*T*T;
-  if(ds >80)
+  if(ds > MAX_VEL)
   {
-    ds = 80;
+    ds = MAX_VEL; //max distance is in second ~ MAX_VELOCITY
   }
     
   goal_s = sdcar.s + ds;
   
-  double goal_sdot = min(acc*T, double(MAX_VEL));
-  printf("given acc: %f, acc*T: %f, v: %f\n", acc, acc*T, goal_sdot);
-  double goal_sdotdot = acc;
+  double goal_sdot = min(acc*sdcar.sim_delay, double(MAX_VEL));
+  printf("given acc: %f, acc*T: %f, v: %f\n", acc, acc*sdcar.sim_delay, goal_sdot);
+  double goal_sdotdot = min(acc, double(MAX_ACC));
 
-  sgoal = { goal_s, goal_sdot, goal_sdotdot };
+
+  sgoal = { goal_s, goal_sdot, 0. };
   s_coeffs = sdcar.jerk_min_trajectory(sstart, sgoal, T);
 
   dstart = { sdcar.d, sdcar.d_dot, sdcar.d_dotdot };
@@ -206,7 +207,7 @@ void BehaviorFSM::generate_trajectory(SDVehicle& sdcar,
     printf("%d: %f ", i, s_coeffs[i]);
   }
   printf("\n");
-  int steps=max(sdcar.sim_delay, T) / SIM_dT;
+  int steps=max(sdcar.sim_delay, T) / SIM_dt;
 
   realize_behavior(sdcar, s_coeffs, d_coeffs, max(steps,100));
 }
@@ -221,7 +222,7 @@ void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coe
   //  }
   // cout << endl;
   double t = 0.;
-  double t_max = SIM_dT * steps;
+  double t_max = SIM_dt * steps;
   while(t < t_max) {
 
     double s_t = s_coeff[0] + s_coeff[1] * t + s_coeff[2] * t * t + s_coeff[3] * t * t * t +
@@ -242,7 +243,7 @@ void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coe
     cout << " x,y: (" << XY[0] << ", " << XY[1] << ")" << endl;
 #endif
 
-    t += SIM_dT;
+    t += SIM_dt;
   }
   //sort waypoint XY before pass to spline
 //  sort_coords(waypointsX, waypointsY);
@@ -256,7 +257,16 @@ void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coe
 //  }
 }
 
-
+void BehaviorFSM::drive_cs(SDVehicle& sdcar, double vel)
+{
+  printf("CONSTANT SPEED..\n");
+  double dist_inc = vel * SIM_dt;
+  for(int i = 0; i < STEPS; i++)
+  {
+        sdcar.next_x_vals.push_back(sdcar.x+(dist_inc*i)*cos(deg2rad(sdcar.yaw)));
+        sdcar.next_y_vals.push_back(sdcar.y+(dist_inc*i)*sin(deg2rad(sdcar.yaw)));
+  }
+}
 //--------------------------------------------------------
 // Behaviour State Definitions
 //--------------------------------------------------------
@@ -269,7 +279,7 @@ void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajecto
 {
   if(sdcar.v_ms > 0) {
     vector<double> s_coeffs, d_coeffs;
-    generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
+    generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, 3);
     set_behavior_state(sdcar, new KeepLane("KeepLane", get_lane(sdcar.d)));
 
   } else {
@@ -285,7 +295,7 @@ void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajecto
     if(cost < 4) { // if car in front far away OR no car in front
 
       vector<double> s_coeffs, d_coeffs;
-      generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
+      generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, 3);
 
     } else {
       // stop
@@ -388,7 +398,13 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
     // 3. generate straight trajectory
 
 
-    generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
+      if(sdcar.v_ms > 1.0)
+      {
+        generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, 3);
+      }else{
+        generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, 2);
+      }
+      
 
 
     // 4. set new state if the cost says to move

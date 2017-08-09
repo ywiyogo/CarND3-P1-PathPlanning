@@ -52,6 +52,8 @@ class BehaviorFSM
   */
   void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, int steps = 40);
   
+  void drive_cs(SDVehicle& sdcar, double vel);
+  
   /*
   * Find the closest front and behind vehicles from a given list of vehicles e in a lane
   */

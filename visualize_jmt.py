@@ -29,11 +29,11 @@ def JMT(start, end, T):
     return alphas
 
 
-sstart=[128.07, 1.21, 0.45]#[124.833900, 0.005005, 0.083501]
-sgoal=[140.07, 20.00, 9.00]#[147.333900, 15.000000, 10.000000]
+sstart=[125.03, 20, 0]#[124.833900, 0.005005, 0.083501]
+sgoal=[145.03, 20, 0]#[147.333900, 15.000000, 10.000000]
 
-Ts=[2, 3, 9.56]
-fig = plt.figure()
+Ts=[2, 3, 100]
+fig = plt.figure(figsize=(18, 8))
 
 axes = [fig.add_subplot(131), fig.add_subplot(132), fig.add_subplot(133)]
 
