@@ -89,9 +89,44 @@ vector<double> SDVehicle::jerk_min_trajectory(vector<double> start, vector<doubl
 
 void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, const vector<double> &prev_path_y, double dt)
 {
-    // updated car states
+  // update car trajectory
+  this->prev_path_size = prev_path_x.size();
   this->x = ego.x;
   this->y = ego.y;
+  if(prev_path_size <2)
+  { 
+    double prev_ref_x = ego.x - cos(ego.yaw);
+    double prev_ref_y = ego.y - sin(ego.yaw);
+    
+    this->global_traj_x_.push_back(prev_ref_x);
+    this->global_traj_x_.push_back(ego.x);
+    
+    this->global_traj_y_.push_back(prev_ref_y);
+    this->global_traj_y_.push_back(ego.y);
+    
+  }
+  else{
+    this->x = prev_path_x[prev_path_size-1];
+    this->y = prev_path_y[prev_path_size-1];
+    double prev_ref_x = prev_path_x[prev_path_size-2];
+    double prev_ref_y = prev_path_y[prev_path_size-2];
+    ego.yaw = atan2(this->y-prev_ref_y, this->x-prev_ref_x);
+    
+    this->global_traj_x_.push_back(prev_ref_x);
+    this->global_traj_x_.push_back(this->x);
+    
+    this->global_traj_y_.push_back(prev_ref_y);
+    this->global_traj_y_.push_back(this->y);
+    
+  }
+  for(int i=0; i< prev_path_x.size();i++)
+  {
+    next_x_vals.push_back(prev_path_x[i]);
+    next_y_vals.push_back(prev_path_y[i]);
+  }
+  
+  // updated car states
+
   this->sim_delay=dt;
   double ds = ego.s - this->s;
   if(this->s == -1) {

@@ -9,6 +9,7 @@
 #include "helper.h"
 #include "sdvehicle.h"
 #include "prediction.h"
+#include "spline/spline.h"
 
 using namespace std;
 using namespace Helper;
@@ -17,7 +18,7 @@ using namespace Helper;
 using json = nlohmann::json;
 
 // For converting back and forth between radians and degrees.
-//constexpr double pi() { return M_PI; }
+constexpr double pi() { return M_PI; }
 //double deg2rad(double x) { return x * pi() / 180; }
 //double rad2deg(double x) { return x * 180 / pi(); }
 
@@ -63,6 +64,9 @@ int ClosestWaypoint(double x, double y, vector<double> maps_x, vector<double> ma
 
 }
 
+/*
+ * Find the closest waypoints index from a given x,y point on the map
+ */
 int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector<double> maps_y)
 {
 
@@ -72,7 +76,7 @@ int NextWaypoint(double x, double y, double theta, vector<double> maps_x, vector
 	double map_y = maps_y[closestWaypoint];
 
 	double heading = atan2( (map_y-y),(map_x-x) );
-
+  //car angle
 	double angle = abs(theta-heading);
 
 	if(angle > M_PI/4)
@@ -133,6 +137,33 @@ vector<double> getFrenet(double x, double y, double theta, vector<double> maps_x
 
 }
 
+// Transform from Frenet s,d coordinates to Cartesian x,y
+vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
+{
+	int prev_wp = -1;
+
+	while(s > maps_s[prev_wp+1] && (prev_wp < (int)(maps_s.size()-1) ))
+	{
+		prev_wp++;
+	}
+
+	int wp2 = (prev_wp+1)%maps_x.size();
+
+	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
+	// the x,y,s along the segment
+	double seg_s = (s-maps_s[prev_wp]);
+
+	double seg_x = maps_x[prev_wp]+seg_s*cos(heading);
+	double seg_y = maps_y[prev_wp]+seg_s*sin(heading);
+
+	double perp_heading = heading-pi()/2;
+
+	double x = seg_x + d*cos(perp_heading);
+	double y = seg_y + d*sin(perp_heading);
+
+	return {x,y};
+
+}
 
 /*
  * Generate prediction of all detected vehicles on the right hand side
@@ -241,13 +272,11 @@ int main() {
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
+          
+          
           auto currtime = std::chrono::system_clock::now();
           std::chrono::duration<double> dt = currtime- prev_time; 
           
-          
-          
-          // Generate prediction of the detected vehicles
-          prediction.update_trajectories(sensor_fusion);
           // prediction.print_curr_trajectories();
           Vehicle ego;
           ego.x = j[1]["x"];
@@ -255,10 +284,26 @@ int main() {
           ego.s = j[1]["s"];
           ego.d = j[1]["d"];
           ego.v_ms = double(j[1]["speed"]) * 0.44704; // convert MPH to m/s!!
-          ego.yaw = j[1]["yaw"];
-
-          sdcar.update_ego(ego, previous_path_x, previous_path_y, dt.count());
+          ego.yaw = deg2rad(j[1]["yaw"]);
           
+          vector<double> traj_x, traj_y;
+          
+          // Get the last couple points for the starting reference points
+          double ref_x = ego.x;
+          double ref_y = ego.y;
+          
+          // if the previous path almost empty, get the current pose
+          
+          
+          
+          
+
+          
+          // Generate prediction of the detected vehicles
+          prediction.update_trajectories(sensor_fusion);
+          
+
+          sdcar.update_ego(ego, traj_x, traj_y, dt.count());
 //          for(auto const& iter : prediction.trajectories_) {
 //            printf("ID: %d, array: v, s, d\n", iter.first);
 //            double distance = fabs(iter.second.back().s - sdcar.s);
@@ -310,8 +355,9 @@ int main() {
             }
           }
 
-          sdcar.update_env(others_prediction, dt.count());
+          //sdcar.update_env(others_prediction, dt.count());
           
+          double dest_v= 49;
 
           json msgJson;
 
@@ -319,9 +365,11 @@ int main() {
           vector<double> next_y_vals;
 
           // TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-
-          msgJson["next_x"] = sdcar.next_x_vals;
-          msgJson["next_y"] = sdcar.next_y_vals;
+          // Add the previous path
+          
+          
+          msgJson["next_x"] = next_x_vals;
+          msgJson["next_y"] = next_y_vals;
 
 
 

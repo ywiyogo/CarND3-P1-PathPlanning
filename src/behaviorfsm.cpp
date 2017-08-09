@@ -1,5 +1,6 @@
 #include "behaviorfsm.h"
 #include "helper.h"
+#include "spline/spline.h"
 #include <iostream>
 
 #define DEBUG 0
@@ -257,15 +258,69 @@ void BehaviorFSM::realize_behavior(SDVehicle& sdcar, const vector<double>& s_coe
 //  }
 }
 
-void BehaviorFSM::drive_cs(SDVehicle& sdcar, double vel)
+void BehaviorFSM::drive_cs(SDVehicle& sdcar, double goal_v, double goal_d)
 {
-  printf("CONSTANT SPEED..\n");
-  double dist_inc = vel * SIM_dt;
-  for(int i = 0; i < STEPS; i++)
+  printf("Drive until CONSTANT SPEED..\n");
+  
+// add the next trajectory points sparsely and fill the points between with spline
+  vector<double> next_wp0 = sdcar.getXY(sdcar.s + 30, sdcar.d);
+  vector<double> next_wp1 = sdcar.getXY(sdcar.s + 60, sdcar.d);
+  vector<double> next_wp2 = sdcar.getXY(sdcar.s + 90, sdcar.d);
+  
+  sdcar.global_traj_x_.push_back(next_wp0[0]);
+  sdcar.global_traj_x_.push_back(next_wp1[0]);
+  sdcar.global_traj_x_.push_back(next_wp2[0]);
+  
+  sdcar.global_traj_y_.push_back(next_wp0[1]);
+  sdcar.global_traj_y_.push_back(next_wp1[1]);
+  sdcar.global_traj_y_.push_back(next_wp2[1]);
+  
+  //Transformation the points to the local car coordinate (shift & rotation)
+  // Alternative use Matrix calculation like in my MPC project
+  int size = sdcar.global_traj_x_.size();
+  vector<double> local_traj_x(size), local_traj_y(size);
+  
+  for (int i=0; i<sdcar.global_traj_x_.size(); i++)
   {
-        sdcar.next_x_vals.push_back(sdcar.x+(dist_inc*i)*cos(deg2rad(sdcar.yaw)));
-        sdcar.next_y_vals.push_back(sdcar.y+(dist_inc*i)*sin(deg2rad(sdcar.yaw)));
+    double shift_x = sdcar.global_traj_x_[i]- sdcar.x;
+    double shift_y = sdcar.global_traj_y_[i]- sdcar.y;
+    
+    local_traj_x[i] = (shift_x*cos(0-sdcar.yaw) - shift_y*sin(0-sdcar.yaw));
+    local_traj_y[i] = (shift_y*sin(0-sdcar.yaw) + shift_y*cos(0-sdcar.yaw));
   }
+  
+  tk::spline sp;
+  sp.set_points(local_traj_x, local_traj_y);
+  
+
+  // Filling the space between the waypoint in order to get the desire velocity
+  double target_x = 30;
+  double target_y = sp(target_x);
+  double target_dist = sqrt(pow(target_x,2) + pow(target_y,2));
+  
+  double start_x = 0;
+  
+  for(int i = 1; i< 50 - sdcar.prev_path_size; i++)
+  {
+    double N = target_dist/ (0.02 *goal_v/2.24);
+    double x = start_x + (target_x/N);
+    double y = sp(x);
+    start_x = x;
+    
+    double x_ref = x;
+    double y_ref = y;
+    // transform back to the global CS
+    // rotation
+    x = (x_ref*cos(sdcar.yaw) - y_ref*sin(sdcar.yaw));
+    y = (x_ref*sin(sdcar.yaw) + y_ref*cos(sdcar.yaw));
+    //shift back to global CS
+    x += sdcar.x;
+    y += sdcar.y;
+    
+    sdcar.next_x_vals.push_back(x);
+    sdcar.next_y_vals.push_back(y);
+  }
+          
 }
 //--------------------------------------------------------
 // Behaviour State Definitions

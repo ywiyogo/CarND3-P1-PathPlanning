@@ -39,13 +39,15 @@ class SDVehicle:public Vehicle
   double s_dotdot, d_dotdot;
   double prev_v;
   double jerk;
-
+  
+  int prev_path_size;
   vector<double> next_x_vals;
   vector<double> next_y_vals;
-  vector<double> prev_path_x;
-  vector<double> prev_path_y;
+  // car trajectory in global CS
+  vector<double> global_traj_x_;
+  vector<double> global_traj_y_;
   deque<double> acc_list;
-
+  
   double sim_delay;
   /**
   * Constructor
