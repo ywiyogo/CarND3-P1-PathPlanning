@@ -31,6 +31,7 @@ SDVehicle::SDVehicle()
     , map_wp_y(0.)
     , map_wp_s(0.)
     , sim_delay(0.02)
+    , ref_v_(0.)
 {
 
 }
@@ -94,6 +95,9 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
   this->prev_path_size = prev_path_x.size();
   this->x = ego.x;
   this->y = ego.y;
+  this->global_traj_x_.clear();
+  this->global_traj_y_.clear();
+  printf("Prev path size: %d\n", int(prev_path_x.size()));
   if(prev_path_size <2)
   {
     double prev_ref_x = ego.x - cos(ego.yaw);
@@ -107,7 +111,6 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
 
   }
   else{
-    printf("Prev path more than 2: %d", prev_path_x.size());
     this->x = prev_path_x[prev_path_size-1];
     this->y = prev_path_y[prev_path_size-1];
     double prev_ref_x = prev_path_x[prev_path_size-2];
@@ -249,7 +252,7 @@ vector<double> SDVehicle::getXY(double s, double d)
 
 void SDVehicle::drive(double goal_v, double goal_d)
 {
-  printf("Drive until CONSTANT SPEED..\n");
+  printf("Drive to %.2f m/s, d: %2.f \n", goal_v, goal_d);
 //  double dist_inc = 0.4;
 //  for(int i =0; i<50; i++)
 //  {
@@ -273,24 +276,38 @@ void SDVehicle::drive(double goal_v, double goal_d)
   this->global_traj_y_.push_back(next_wp0[1]);
   this->global_traj_y_.push_back(next_wp1[1]);
   this->global_traj_y_.push_back(next_wp2[1]);
-
+  int size = this->global_traj_x_.size();
+//  printf("Global traj x: ");
+//  for(int i = 0; i< size; i++)
+//  {
+//    printf("%.2f ",this->global_traj_x_[i]);
+//  }
+//  printf("\n");
   //Transformation the points to the local car coordinate (shift & rotation)
   // Alternative use Matrix calculation like in my MPC project
-  int size = this->global_traj_x_.size();
+  
 
   vector<double> local_traj_x(size), local_traj_y(size);
-
+  //transform trajectory points to the car coordinate
   for (int i=0; i<this->global_traj_x_.size(); i++)
   {
-    double shift_x = this->global_traj_x_[i]- this->x;
-    double shift_y = this->global_traj_y_[i]- this->y;
+    double shift_x = this->global_traj_x_[i] - this->x;
+    double shift_y = this->global_traj_y_[i] - this->y;
 
     local_traj_x[i] = (shift_x*cos(0-this->yaw) - shift_y*sin(0-this->yaw));
     local_traj_y[i] = (shift_x*sin(0-this->yaw) + shift_y*cos(0-this->yaw));
   }
-  printf("\n");
+  //printf("\n");
+  
+//  printf("Local traj x: ");
+//  for(int i = 0; i< size; i++)
+//  {
+//    printf("%.2f ",local_traj_x[i]);
+//  }
+//  printf("\n");
+  
   tk::spline sp;
-  sort_coords(local_traj_x, local_traj_y);
+  //sort_coords(local_traj_x, local_traj_y);
   sp.set_points(local_traj_x, local_traj_y);
 
 
@@ -300,7 +317,8 @@ void SDVehicle::drive(double goal_v, double goal_d)
   double target_dist = sqrt(pow(target_x,2) + pow(target_y,2));
 
   double start_x = 0;
-  for(int i = 1; i<= 50 - this->prev_path_size; i++)
+  //printf("Traj x: ");
+  for(int i = 1; i<= 70 - this->prev_path_size; i++)
   {
     double N = target_dist/ (0.02 *goal_v);
     double x = start_x + (target_x/N);
@@ -316,9 +334,9 @@ void SDVehicle::drive(double goal_v, double goal_d)
     //shift back to global CS
     x += this->x;
     y += this->y;
-
+    //printf("%.2f, %.2f ",x, y);
     this->next_x_vals.push_back(x);
     this->next_y_vals.push_back(y);
   }
-
+  //printf("\n");
 }

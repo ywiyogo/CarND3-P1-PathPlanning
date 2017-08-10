@@ -49,6 +49,7 @@ class SDVehicle:public Vehicle
   deque<double> acc_list;
   
   double sim_delay;
+  double ref_v_;
   /**
   * Constructor
   */
