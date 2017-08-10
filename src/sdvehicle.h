@@ -65,6 +65,9 @@ class SDVehicle:public Vehicle
   //update measurements of the environment
   void update_env(const map<int, deque<Vehicle> >& vehicle_trajectories, double dt);
   
+  //Drive the car until reach the given velocity and d
+  void drive(double goal_v, double goal_d);
+
   // Copy the map waypoints
   void set_map_waypoints_x(const vector<double> &mwaypoints_x);
   void set_map_waypoints_y(const vector<double> &mwaypoints_y);

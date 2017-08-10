@@ -10,7 +10,10 @@
 
 using namespace std;
 
-struct EgoVehicle;
+struct MinCost{
+  int lane;
+  double cost;
+};
 
 // ----------------------------------------------------------------------------
 // BehaviorFSM (FSM base class) declaration
@@ -66,6 +69,8 @@ class BehaviorFSM
   * Calculate the cost of the given set of vehicle of a lane (can be different lane)
   */
   double calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicle> >& inlane_veh_trajectories);
+
+  MinCost calc_min_cost(SDVehicle& sdcar,map<int, deque<Vehicle> > predictions, int curr_lane);
 
   // Name of the FSM
   string name_;

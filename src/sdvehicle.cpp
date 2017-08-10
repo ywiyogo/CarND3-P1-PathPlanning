@@ -12,6 +12,7 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using namespace Helper;
 
 const double MAX_S_MAP = 6945.554;
 /**
@@ -244,45 +245,80 @@ vector<double> SDVehicle::getXY(double s, double d)
   double y = seg_y + d * sin(perp_heading);
 
   return { x, y };
-  // implementing the new getXY since the provided function doesn't work well
+}
 
-  //find the index of the s in the map(0 to 6945.554)
-//  vector<double> s_ranges, x_ranges, y_ranges;
-//  size_t m_size = map_wp_s.size();
-//  s= fmod(MAX_S_MAP_MAP + s, MAX_S_MAP_MAP);
+void SDVehicle::drive(double goal_v, double goal_d)
+{
+  printf("Drive until CONSTANT SPEED..\n");
+//  double dist_inc = 0.4;
+//  for(int i =0; i<50; i++)
+//  {
+//    double next_s = this->s + (i+1)*dist_inc;
+//    double next_d = 6;
+//    vector<double> XY = this->getXY(next_s, next_d);
+//    this->next_x_vals.push_back(XY[0]);
+//    this->next_y_vals.push_back(XY[1]);
 //
-//  const vector<double>::iterator &upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
-//  int map_s_index = upper_iter - map_wp_s.begin() ;
-//  int prev_wp = map_s_index -1;
-//
-//  //get the range between +-3 from the
-//  for(int i = -3; i < 5; i++) {
-//
-//    size_t wp = (prev_wp + i + m_size) % m_size;
-//    double wp_s = map_wp_s[wp];
-//
-//    x_ranges.push_back(map_wp_x[wp] + d * map_wp_dx[wp]);
-//    y_ranges.push_back(map_wp_y[wp] + d * map_wp_dy[wp]);
-//
-//    //Dealing with the circle circuit
-//    if(prev_wp + i < 0) {
-//      wp_s -= MAX_S_MAP_MAP;
-//    } else if(prev_wp + i >= m_size) {
-//      wp_s += MAX_S_MAP_MAP;
-//    }
-//    s_ranges.push_back(wp_s);
 //  }
-//
-//  // Integrate spline to get the way curve by fitting s to x & y
-//  tk::spline spline_x, spline_y;
-//  double x,y;
-//  spline_x.set_points(s_ranges, x_ranges);
-//  spline_y.set_points(s_ranges, y_ranges);
-//
-//  x = spline_x(s);
-//  y = spline_y(s);
-//
-//  return {x, y};
 
+// add the next trajectory points sparsely and fill the points between with spline
+  vector<double> next_wp0 = this->getXY(this->s + 30, goal_d);
+  vector<double> next_wp1 = this->getXY(this->s + 60, goal_d);
+  vector<double> next_wp2 = this->getXY(this->s + 90, goal_d);
+
+  this->global_traj_x_.push_back(next_wp0[0]);
+  this->global_traj_x_.push_back(next_wp1[0]);
+  this->global_traj_x_.push_back(next_wp2[0]);
+
+  this->global_traj_y_.push_back(next_wp0[1]);
+  this->global_traj_y_.push_back(next_wp1[1]);
+  this->global_traj_y_.push_back(next_wp2[1]);
+
+  //Transformation the points to the local car coordinate (shift & rotation)
+  // Alternative use Matrix calculation like in my MPC project
+  int size = this->global_traj_x_.size();
+
+  vector<double> local_traj_x(size), local_traj_y(size);
+
+  for (int i=0; i<this->global_traj_x_.size(); i++)
+  {
+    double shift_x = this->global_traj_x_[i]- this->x;
+    double shift_y = this->global_traj_y_[i]- this->y;
+
+    local_traj_x[i] = (shift_x*cos(0-this->yaw) - shift_y*sin(0-this->yaw));
+    local_traj_y[i] = (shift_x*sin(0-this->yaw) + shift_y*cos(0-this->yaw));
+  }
+  printf("\n");
+  tk::spline sp;
+  sort_coords(local_traj_x, local_traj_y);
+  sp.set_points(local_traj_x, local_traj_y);
+
+
+  // Filling the space between the waypoint in order to get the desire velocity
+  double target_x = 30;
+  double target_y = sp(target_x);
+  double target_dist = sqrt(pow(target_x,2) + pow(target_y,2));
+
+  double start_x = 0;
+  for(int i = 1; i<= 50 - this->prev_path_size; i++)
+  {
+    double N = target_dist/ (0.02 *goal_v);
+    double x = start_x + (target_x/N);
+    double y = sp(x);
+    start_x = x;
+
+    double x_ref = x;
+    double y_ref = y;
+    // transform back to the global CS
+    // rotation
+    x = (x_ref*cos(this->yaw) - y_ref*sin(this->yaw));
+    y = (x_ref*sin(this->yaw) + y_ref*cos(this->yaw));
+    //shift back to global CS
+    x += this->x;
+    y += this->y;
+
+    this->next_x_vals.push_back(x);
+    this->next_y_vals.push_back(y);
+  }
 
 }
