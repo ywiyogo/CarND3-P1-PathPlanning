@@ -183,7 +183,7 @@ void SDVehicle::update_ego(Vehicle &ego, const vector<double> &prev_path_x, cons
   cout << "----------------------------------------------------------" << endl;
   cout << "x: " << this->x << " y: " << this->y << " s: " << this->s << " d: " << this->d << " yaw: " << this->yaw
        << " speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk<<endl;
-  cout << "dt: "<<this->sim_delay<<" ds: "<<ds<<" s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot<< endl;
+  cout << "dt: "<<this->sim_delay<<" ds: "<<ds<<" s_dot: " << this->s_dot << " d_dot: " << this->d_dot<< endl;
   cout << "----------------------------------------------------------" << endl;
 
 
@@ -285,7 +285,7 @@ void SDVehicle::drive(double goal_v, double goal_d)
 //  printf("\n");
   //Transformation the points to the local car coordinate (shift & rotation)
   // Alternative use Matrix calculation like in my MPC project
-  
+
 
   vector<double> local_traj_x(size), local_traj_y(size);
   //transform trajectory points to the car coordinate
@@ -298,14 +298,14 @@ void SDVehicle::drive(double goal_v, double goal_d)
     local_traj_y[i] = (shift_x*sin(0-this->yaw) + shift_y*cos(0-this->yaw));
   }
   //printf("\n");
-  
-//  printf("Local traj x: ");
-//  for(int i = 0; i< size; i++)
-//  {
-//    printf("%.2f ",local_traj_x[i]);
-//  }
-//  printf("\n");
-  
+
+ printf("Local traj x: ");
+ for(int i = 0; i< size; i++)
+ {
+   printf("%.2f ",local_traj_x[i]);
+ }
+ printf("\n");
+
   tk::spline sp;
   //sort_coords(local_traj_x, local_traj_y);
   sp.set_points(local_traj_x, local_traj_y);
@@ -342,14 +342,11 @@ void SDVehicle::drive(double goal_v, double goal_d)
 }
 
 void SDVehicle::adjust_speed(double dv){
-
-  this->ref_v_ = this->ref_v_ + dv;
+  printf("adjust speed: %.2f \n", dv)
+;  this->ref_v_ = this->ref_v_ + dv;
 
   if(this->ref_v_ > MAX_VEL)
   {
     this->ref_v_ = MAX_VEL;
-  } else if(this->ref_v_ < MIN_VEL)
-  {
-    this->ref_v_ = MIN_VEL;
   }
 }

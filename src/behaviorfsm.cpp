@@ -11,19 +11,19 @@ using namespace Helper;
 const int horizon_t = 1;
 const int PRED_TIME = 1;
 
-const int CL_MAX_VEL = 15;     // m/s
+const int CL_MAX_VEL = 15;  // m/s
 const int MAX_JERK = 10;    // in m/s3
 const int MAX_ACC = 9;      // in m/s2
-const int DIST_BUFFER = 30; // in m
+const int DIST_BUFFER = 35; // in m
 const double V_BUFFER = 5;
 const double SIM_dt = 0.02; // 0.02s
 const double JMT_T = 2;     // in s for JMT
 const int STEPS = 50;
 double max_dist = MAX_VEL * PRED_TIME;
-
+const double NORMAL_VEL = 0.25;
 // Cost value priority weight
-const int COLL_W = 3;
-const int DIST_W = 2;
+const int COLL_W = 5;
+const int DIST_W = 4;
 const int LANE_W = 1;
 //-----------------------------------------
 // Abstract Class
@@ -36,6 +36,7 @@ BehaviorFSM::BehaviorFSM(const string& name, int lane)
 {
   this->name_ = name;
   this->goallane_ = lane;
+  this->drive_mode_ = 0;
   cout << "##########################################################" << endl;
   cout << "Enter " << this->name_ << " goal lane is " << lane << endl;
   cout << "##########################################################" << endl;
@@ -57,66 +58,56 @@ void BehaviorFSM::set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state)
  * ego_car(s, d, v)
  * pred_vehicles[id, x, y, vx,vy, s,d]
  */
-double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicle> >& inlane_veh_trajectories)
+double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<deque<Vehicle> >& inlane_veh_trajectories)
 {
   double totalcost = 0.;
   double lane_cost = 0.;
   double time_to_collision_cost = 0.;
   double distance_cost = 0.;
   double dist = 0.0;
-  bool is_cautious = false;
-  bool is_dangerous = false;
+
   deque<Vehicle> frontcar, rearcar;
-  
 
-
-  //calculate the distance and time to collision cost
+  // calculate the distance and time to collision cost
   find_closest_cars_inlane(sdcar.s, inlane_veh_trajectories, frontcar, rearcar);
-
   int size = frontcar.size();
-
-  //calculate the lane change cost
-  int diff_lane = abs(get_lane(sdcar.d) - get_lane(frontcar[size - 1].d));
+  int cur_idx;
+  if(size > 1) {
+    cur_idx = size - 2;
+  } else if(size > 0) {
+    cur_idx = size - 1;
+  } else {
+    cur_idx = 0;
+  }
+  // calculate the lane change cost
+  int diff_lane = abs(get_lane(sdcar.d) - lane);
 
   lane_cost = diff_lane;
   // cout << "Lane " << get_lane(frontcar[size - 1].d) << endl;
-  
-  if(frontcar.size() == 0) {  //no car in front of the ego
-    distance_cost = 0.;
-    if(sdcar.v_ms < MAX_VEL) {
-      sdcar.adjust_speed(min(0.25, MAX_VEL - sdcar.v_ms));
-    }
-  } else {
-    vector<double> egoXY = sdcar.getXY(sdcar.s, sdcar.d);
-    vector<double> frontXY = sdcar.getXY(frontcar[size - 2].s, frontcar[size - 2].d);
 
+  if(frontcar.size() == 0) { // no car in front of the ego
+    distance_cost = 0.;
+
+  } else {
+
+    vector<double> egoXY = sdcar.getXY(sdcar.s, sdcar.d);
+    vector<double> frontXY = sdcar.getXY(frontcar[cur_idx].s, frontcar[cur_idx].d);
     dist = calc_distance(egoXY[0], egoXY[1], frontXY[0], frontXY[1]);
-    distance_cost = 10*exp(-dist/10);
+    distance_cost = 10 * exp(-dist / 10);
 
     // check if the lane is the same as the ego's lane
-    if(get_lane(sdcar.d) == get_lane(frontcar[size - 2].d)) {
+    if(get_lane(sdcar.d) == lane) {
       printf("Front car in lane detected, dist: %.2f!\n", dist);
-      if(dist < DIST_BUFFER/2) {
-        is_dangerous = true;
+      if(dist < (DIST_BUFFER / 2)) {
+        this->drive_mode_ = ALERT;
       } else if(dist < DIST_BUFFER) {
-        is_cautious = true;
-      }
-      
-      if(is_dangerous) {
-        printf("##Dangerous!\n");
-        sdcar.adjust_speed( -0.3); // in m/s
-        
-      } else if(is_cautious) {
-        printf("##Cautious!\n");
-        sdcar.adjust_speed(-0.2);
-        
-      } else {
-        sdcar.adjust_speed( min(0.25, MAX_VEL - sdcar.v_ms) );
+        this->drive_mode_ = CAUTIOUS;
+      }else{
+        this->drive_mode_ = NORMAL;
       }
     } else { // different lane is important in case of change lane
-
       if(dist < DIST_BUFFER) {
-        cout << "Front car other lane " << frontcar[size - 1].id << " distance: " << dist << endl;
+        cout << "\n Front car other lane " <<lane<<" id: "<< frontcar[cur_idx].id << " distance: " << dist << endl;
         totalcost += 3;
       } else {
         if(frontcar[size - 1].v_ms > (sdcar.v_ms)) {
@@ -128,30 +119,26 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicl
       }
     }
   }
+
   // calculate time to collision with the rear car of other lane
   size = rearcar.size();
   if(size == 0) {
     time_to_collision_cost = 0;
-  } else if(diff_lane != 0){
+  } else if(diff_lane != 0) {
 
-    double pred_s_ego = sdcar.s + sdcar.v_ms *1; // predict s in 1 second
-    double pred_s_rear = frontcar[size - 1].s + frontcar[size - 1].v_ms *1; // predict s in 1 second
-
+    double pred_s_ego = sdcar.s + sdcar.v_ms * 1;                          // predict s in 1 second
+    double pred_s_rear = rearcar[size - 1].s + rearcar[size - 1].v_ms * 1; // predict s in 1 second
     vector<double> pred_egoXY = sdcar.getXY(pred_s_ego, sdcar.d);
-
-    //get the prediction waypoint of the rear car [size-1]
-    vector<double> pred_rearXY = sdcar.getXY(pred_s_rear, frontcar[size - 1].d);
-
+    // get the prediction waypoint of the rear car [size-1]
+    vector<double> pred_rearXY = sdcar.getXY(pred_s_rear, rearcar[size - 1].d);
     dist = calc_distance(pred_egoXY[0], pred_egoXY[1], pred_rearXY[0], pred_rearXY[1]);
-    
+
     double coll_t = dist / sdcar.v_ms;
+    time_to_collision_cost = 10 * exp(-coll_t / 5);
 
-    time_to_collision_cost = 10*exp(-coll_t/10);
-      
-    printf("Rear cars, dist: %.2f, collision time: %.2f, time to collision: %.2f\n", dist, coll_t, time_to_collision_cost);
-
+    printf(
+        "Rear cars, dist: %.2f, collision time: %.2f, time to collision: %.2f\n", dist, coll_t, time_to_collision_cost);
   }
-
   totalcost = time_to_collision_cost * COLL_W + distance_cost * DIST_W + lane_cost * LANE_W;
 
   return totalcost;
@@ -173,9 +160,9 @@ MinCost BehaviorFSM::calc_min_cost(SDVehicle& sdcar, map<int, deque<Vehicle> > c
   }
   // 1. check the possible lane
   switch(curr_lane) {
-  case 0:
-    costs[0] = calc_behaviorlane_cost(sdcar, lane_trajectories_0);
-    costs[1] = calc_behaviorlane_cost(sdcar, lane_trajectories_1);
+  case LANE0:
+    costs[0] = calc_behaviorlane_cost(sdcar, 0, lane_trajectories_0);
+    costs[1] = calc_behaviorlane_cost(sdcar, 1, lane_trajectories_1);
     cout << "Cost lane 0: " << costs[0] << " lane 1: " << costs[1] << endl;
 
     // compare the cost
@@ -186,10 +173,12 @@ MinCost BehaviorFSM::calc_min_cost(SDVehicle& sdcar, map<int, deque<Vehicle> > c
       }
     }
     break;
-  case 1:
-    costs[0] = 0.1 + calc_behaviorlane_cost(sdcar, lane_trajectories_0);
-    costs[1] = calc_behaviorlane_cost(sdcar, lane_trajectories_1);
-    costs[2] = 0.2 + calc_behaviorlane_cost(sdcar, lane_trajectories_2);
+  case LANE1:
+    costs[0] = calc_behaviorlane_cost(sdcar, 0, lane_trajectories_0);
+
+    costs[1] = calc_behaviorlane_cost(sdcar, 1, lane_trajectories_1);
+
+    costs[2] = calc_behaviorlane_cost(sdcar, 2, lane_trajectories_2);
     cout << "Cost lane 0: " << costs[0] << " lane 1: " << costs[1] << " lane 2: " << costs[2] << endl;
 
     for(const auto& itercost : costs) {
@@ -199,10 +188,10 @@ MinCost BehaviorFSM::calc_min_cost(SDVehicle& sdcar, map<int, deque<Vehicle> > c
       }
     }
     break;
-  case 2:
-    costs[1] = calc_behaviorlane_cost(sdcar, lane_trajectories_1);
-    costs[2] = calc_behaviorlane_cost(sdcar, lane_trajectories_2);
-    cout << "Cost lane 0: " << costs[1] << " lane 1: " << costs[2] << endl;
+  case LANE2:
+    costs[1] = calc_behaviorlane_cost(sdcar, 1, lane_trajectories_1);
+    costs[2] = calc_behaviorlane_cost(sdcar, 2, lane_trajectories_2);
+    cout << "Cost lane 1: " << costs[1] << " lane 2: " << costs[2] << endl;
 
     // compare the cost
     for(const auto& itercost : costs) {
@@ -216,6 +205,7 @@ MinCost BehaviorFSM::calc_min_cost(SDVehicle& sdcar, map<int, deque<Vehicle> > c
     printf(" Invalid lane: %d", curr_lane);
   }
   cout << "Min Cost is on lane: " << mcost.lane << " val: " << mcost.cost << endl;
+
   return mcost;
 }
 
@@ -228,16 +218,20 @@ void BehaviorFSM::find_closest_cars_inlane(double ego_s,
 {
   double front_min_dist = 999;
   double rear_min_dist = -999;
-  int front_id, rear_id = -1;
-  int car_amount = inlane_veh_trajectories.size();
-  for(int i = 0; i < car_amount; i++) {
+  int front_id = -1, rear_id = -1;
+
+  if(inlane_veh_trajectories.empty()) {
+    return;
+  }
+  int size = inlane_veh_trajectories.size();
+
+  for(int i = 0; i < size; i++) {
     int trajectory_size = inlane_veh_trajectories[i].size();
-    double curr_s = inlane_veh_trajectories[i][trajectory_size - 2].s;
+    double curr_s = inlane_veh_trajectories[i][size - 1].s;
     double diff = curr_s - ego_s;
     if(diff > 0) {
       if(diff < front_min_dist) {
         front_min_dist = diff;
-
         front_id = i;
       }
     } else {
@@ -248,10 +242,14 @@ void BehaviorFSM::find_closest_cars_inlane(double ego_s,
       }
     }
   }
-  if(front_id > -1)
+
+  if(front_id > -1) {
     res_frontcar = inlane_veh_trajectories[front_id];
-  if(rear_id > -1)
+  }
+  if(rear_id > -1) {
     res_rearcar = inlane_veh_trajectories[rear_id];
+  }
+
   return;
 }
 
@@ -363,14 +361,24 @@ Ready::~Ready()
 
 void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectories)
 {
-  sdcar.ref_v_ += 0.3;
-  if(sdcar.v_ms > 0) {
 
+  if(sdcar.v_ms > 0) {
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms < MAX_VEL) {
+        sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+      }
+      break;
+    default:
+      printf("FSM: Ready, drive mode: %d\n", this->drive_mode_);
+    }
     sdcar.drive(sdcar.ref_v_, 2 + 4 * get_lane(sdcar.d));
     set_behavior_state(sdcar, new KeepLane("KeepLane", get_lane(sdcar.d)));
 
   } else {
-    sdcar.drive(sdcar.ref_v_, 2 + 4 * get_lane(sdcar.d));
+    this->drive_mode_ = NORMAL;
+    sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+    sdcar.drive(2.0, 2 + 4 * get_lane(sdcar.d));
   }
 }
 
@@ -385,18 +393,37 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
   //    # only consider states which can be reached from current FSM state.
   //    possible_successor_states = successor_states(current_fsm_state)
   int currlane = get_lane(sdcar.d);
+//  double dynamic_dv = 2* sdcar.sim_delay;
+//  printf("## dv: %.2f\n", dynamic_dv);
+  
   MinCost mcost;
+  if(fabs(sdcar.d_dot)> 1. && this->drive_mode_ == NORMAL)
+  {
+    this->drive_mode_ = CAUTIOUS;
+  } 
   // 1. check the possible lane
   switch(currlane) {
   //------------------------
   // Lane 0
   //------------------------
-  case 0:
+  case LANE0:
     cout << "Lane 0" << endl;
     mcost = calc_min_cost(sdcar, cars_trajectories, 0);
 
-    // 3. generate straight trajectory
-    // there is no trajectory different if the cost of lane 1 is the minimum
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms < MAX_VEL) {
+        sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+      }
+      break;
+    case CAUTIOUS:
+      printf("CAUTIOUS!!");
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+      break;
+    }
 
     sdcar.drive(sdcar.ref_v_, 2 + 4 * mcost.lane);
     // generate_trajectory(sdcar, this->suggest_acc_, sdcar.d, s_coeffs, d_coeffs, JMT_T);
@@ -410,8 +437,24 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
   //------------------------
   // Lane 1
   //------------------------
-  case 1:
+  case LANE1:
     mcost = calc_min_cost(sdcar, cars_trajectories, 1);
+    printf("Drive mode: ");
+    switch(this->drive_mode_) {
+    case NORMAL:
+      printf("NORMAL!!");
+      if(sdcar.v_ms < MAX_VEL) {
+        sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+      }
+      break;
+    case CAUTIOUS:
+      printf("CAUTIOUS!!");
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      printf("ALERT!!");
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
     sdcar.drive(sdcar.ref_v_, 2 + 4 * mcost.lane);
 
     // 4. set new state if the cost says to move
@@ -430,9 +473,21 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
       }
     }
     break;
-  case 2:
+  case LANE2:
     mcost = calc_min_cost(sdcar, cars_trajectories, 2);
-    printf("Suggest Vel: %.2f\n", sdcar.ref_v_);
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms < MAX_VEL) {
+        sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+      }
+      break;
+    case CAUTIOUS:
+      printf("CAUTIOUS!!");
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
     sdcar.drive(sdcar.ref_v_, 2 + 4 * mcost.lane);
 
     // 4. set new state if the cost says to move
@@ -447,7 +502,9 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
   }
 }
 
-//==================================================================
+//==========================================================================
+// Lane Change Left
+//==========================================================================
 LCL::~LCL()
 {
 }
@@ -461,12 +518,23 @@ void LCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   // 1. check the possible lane
   switch(this->goallane_) {
 
-  case 0: // goal lane 0
+  case LANE0: // goal lane 0
     if(currlane)
       if(fabs(sdcar.d - 2) > 0.2) { // goal not yet reached, generate trajectory
         // 3. generate  trajectoryto lane 0
         printf("Goal d not yet reach \n");
-
+        switch(this->drive_mode_) {
+        case NORMAL:
+          if(sdcar.v_ms < MAX_VEL) {
+            sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+          }
+          break;
+        case CAUTIOUS:
+          sdcar.adjust_speed(-0.2); // in m/s
+          break;
+        case ALERT:
+          sdcar.adjust_speed(-0.3); // in m/s
+        }
         sdcar.drive(sdcar.ref_v_, 2);
 
       } else { // goal reach keep lane
@@ -474,10 +542,21 @@ void LCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
         set_behavior_state(sdcar, new KeepLane("KeepLane", currlane));
       }
     break;
-  case 1: // goal lane 1
+  case LANE1: // goal lane 1
 
     if(fabs(sdcar.d - 6) > 0.2) { // goal not yet reached, generate trajectory
-
+      switch(this->drive_mode_) {
+      case NORMAL:
+        if(sdcar.v_ms < MAX_VEL) {
+          sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+        }
+        break;
+      case CAUTIOUS:
+        sdcar.adjust_speed(-0.2); // in m/s
+        break;
+      case ALERT:
+        sdcar.adjust_speed(-0.3); // in m/s
+      }
       sdcar.drive(sdcar.ref_v_, 6);
 
     } else { // goal reach keep lane
@@ -489,8 +568,9 @@ void LCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   }
 }
 
-//==================================================================
-
+//==========================================================================
+// Prepare Lane Change Left
+//==========================================================================
 PrepareLCL::~PrepareLCL()
 {
   //    # only consider states which can be reached from current FSM state.
@@ -504,13 +584,22 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   MinCost mcost;
 
   switch(currlane) {
-  case 1: // prepare 1 -> 0
+  case LANE1: // prepare 1 -> 0
 
     mcost = calc_min_cost(sdcar, cars_trajectories, 1);
 
-    printf("Suggest Vel: %.2f\n", sdcar.ref_v_);
-
-    sdcar.ref_v_ += 0.2;
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms > CL_MAX_VEL) {
+        sdcar.adjust_speed(-0.2);
+      }
+      break;
+    case CAUTIOUS:
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
     sdcar.drive(sdcar.ref_v_, 6);
 
     // 4. set new state if the cost says to move
@@ -529,9 +618,21 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   //--------------
   // Robot on lane 2 -> 1
   //--------------
-  case 2:
+  case LANE2:
 
     mcost = calc_min_cost(sdcar, cars_trajectories, 2);
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms > CL_MAX_VEL) {
+        sdcar.adjust_speed(-0.2);
+      }
+      break;
+    case CAUTIOUS:
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
     sdcar.drive(sdcar.ref_v_, 10);
 
     // 4. set new state if the cost says to move
@@ -547,7 +648,9 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
     }
   }
 }
-//---------------------------------------------------------------------------------
+//==========================================================================
+// Lane Change Right
+//==========================================================================
 
 LCR::~LCR()
 {
@@ -563,15 +666,39 @@ void LCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   int currlane = get_lane(sdcar.d);
 
   switch(this->goallane_) {
-  case 1: {
+  case LANE1: {
     if(fabs(sdcar.d - 6) > 0.2) { // goal not yet reached, generate trajectory
+      switch(this->drive_mode_) {
+      case NORMAL:
+        if(sdcar.v_ms < MAX_VEL) {
+          sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+        }
+        break;
+      case CAUTIOUS:
+        sdcar.adjust_speed(-0.2); // in m/s
+        break;
+      case ALERT:
+        sdcar.adjust_speed(-0.3); // in m/s
+      }
       sdcar.drive(sdcar.ref_v_, 6);
     } else { // goal reach keep lane
       set_behavior_state(sdcar, new KeepLane("KeepLane", currlane));
     }
   } break;
-  case 2: {
+  case LANE2: {
     if(fabs(sdcar.d - 10) > 0.2) { // goal not yet reached, generate trajectory
+      switch(this->drive_mode_) {
+      case NORMAL:
+        if(sdcar.v_ms < MAX_VEL) {
+          sdcar.adjust_speed(min(NORMAL_VEL, MAX_VEL - sdcar.v_ms));
+        }
+        break;
+      case CAUTIOUS:
+        sdcar.adjust_speed(-0.2); // in m/s
+        break;
+      case ALERT:
+        sdcar.adjust_speed(-0.3); // in m/s
+      }
       sdcar.drive(sdcar.ref_v_, 10);
     } else { // goal reach keep lane
       set_behavior_state(sdcar, new KeepLane("KeepLane", currlane));
@@ -579,6 +706,10 @@ void LCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   } break;
   }
 }
+
+//==========================================================================
+// Prepare Lane Change Right
+//==========================================================================
 PrepareLCR::~PrepareLCR()
 {
 }
@@ -589,11 +720,23 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   MinCost mcost;
   switch(currlane) {
   // Robot on lane 0 praparing to lane 1
-  case 0:
+  case LANE0:
     mcost = calc_min_cost(sdcar, cars_trajectories, 0);
 
     // whatever the mincost is the robot still drive forward
-    sdcar.ref_v_ += 0.2;
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms > CL_MAX_VEL) {
+        sdcar.adjust_speed(-0.2);
+      }
+      break;
+    case CAUTIOUS:
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
+
     sdcar.drive(sdcar.ref_v_, 2);
 
     if(mcost.lane == 1) {
@@ -607,11 +750,23 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   //--------------
   // Robot on lane 1->2
   //--------------
-  case 1:
+  case LANE1:
 
     mcost = calc_min_cost(sdcar, cars_trajectories, 1);
 
     // whatever the mincost is the robot still drive forward, but with slower velocity and acc
+    switch(this->drive_mode_) {
+    case NORMAL:
+      if(sdcar.v_ms > CL_MAX_VEL) {
+        sdcar.adjust_speed(-0.2);
+      }
+      break;
+    case CAUTIOUS:
+      sdcar.adjust_speed(-0.2); // in m/s
+      break;
+    case ALERT:
+      sdcar.adjust_speed(-0.3); // in m/s
+    }
     sdcar.drive(sdcar.ref_v_, 6);
 
     if(mcost.lane == 2) {

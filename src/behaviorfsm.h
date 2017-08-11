@@ -15,6 +15,19 @@ struct MinCost{
   double cost;
 };
 
+enum Lane{
+  LANE0 = 0,
+  LANE1 = 1,
+  LANE2 = 2,
+};
+enum DriveMode
+{
+  STOP = 0,
+  NORMAL = 1,
+  CAUTIOUS = 2,
+  ALERT = 3,
+};
+
 // ----------------------------------------------------------------------------
 // BehaviorFSM (FSM base class) declaration
 //
@@ -64,7 +77,7 @@ class BehaviorFSM
   /*
   * Calculate the cost of the given set of vehicle of a lane (can be different lane)
   */
-  double calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicle> >& inlane_veh_trajectories);
+  double calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<deque<Vehicle> >& inlane_veh_trajectories);
 
   MinCost calc_min_cost(SDVehicle& sdcar,map<int, deque<Vehicle> > predictions, int curr_lane);
 
@@ -72,6 +85,8 @@ class BehaviorFSM
   string name_;
   // Goal lane of current state
   int goallane_;
+  // drive mode 0: normal, 1: cautious 2: alert
+  unsigned drive_mode_;
 };
 
 //-----------------------------------
