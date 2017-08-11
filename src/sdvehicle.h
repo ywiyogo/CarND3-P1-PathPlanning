@@ -69,6 +69,8 @@ class SDVehicle:public Vehicle
   //Drive the car until reach the given velocity and d
   void drive(double goal_v, double goal_d);
 
+  void adjust_speed(double dv);
+
   // Copy the map waypoints
   void set_map_waypoints_x(const vector<double> &mwaypoints_x);
   void set_map_waypoints_y(const vector<double> &mwaypoints_y);

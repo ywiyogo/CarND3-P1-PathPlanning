@@ -9,6 +9,8 @@ using namespace std;
 
 namespace Helper
 {
+const int MAX_VEL = 21;     // m/s
+const int MIN_VEL = 4;      // m/s
 
 double deg2rad(double x);
 
@@ -17,6 +19,8 @@ double rad2deg(double x);
 * Get the lane of a vehicle based on its d value
 */
 int get_lane(double d);
+
+double calc_distance(double x1, double y1, double x2, double y2);
 
 double bc_speed_cost(double v);
 

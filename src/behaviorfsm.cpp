@@ -10,8 +10,8 @@ using namespace Helper;
 
 const int horizon_t = 1;
 const int PRED_TIME = 1;
-const int MAX_VEL = 21;     // m/s
-const int MIN_VEL = 4;      // m/s
+
+const int CL_MAX_VEL = 15;     // m/s
 const int MAX_JERK = 10;    // in m/s3
 const int MAX_ACC = 9;      // in m/s2
 const int DIST_BUFFER = 30; // in m
@@ -20,6 +20,11 @@ const double SIM_dt = 0.02; // 0.02s
 const double JMT_T = 2;     // in s for JMT
 const int STEPS = 50;
 double max_dist = MAX_VEL * PRED_TIME;
+
+// Cost value priority weight
+const int COLL_W = 3;
+const int DIST_W = 2;
+const int LANE_W = 1;
 //-----------------------------------------
 // Abstract Class
 //-----------------------------------------
@@ -48,14 +53,6 @@ void BehaviorFSM::set_behavior_state(SDVehicle& sdcar, BehaviorFSM* state)
   delete aux;
 }
 
-// Base Implementation
-void BehaviorFSM::update_ego(SDVehicle& sdcar,
-    Vehicle& ego,
-    const vector<double>& prev_path_x,
-    const vector<double>& prev_path_y)
-{
-}
-
 /*
  * ego_car(s, d, v)
  * pred_vehicles[id, x, y, vx,vy, s,d]
@@ -63,65 +60,63 @@ void BehaviorFSM::update_ego(SDVehicle& sdcar,
 double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicle> >& inlane_veh_trajectories)
 {
   double totalcost = 0.;
+  double lane_cost = 0.;
+  double time_to_collision_cost = 0.;
+  double distance_cost = 0.;
+  double dist = 0.0;
   bool is_cautious = false;
   bool is_dangerous = false;
-  deque<Vehicle> frontcar;
-  deque<Vehicle> rearcar;
-  if(inlane_veh_trajectories.size() == 0) {
-    return 0.;
-  }
+  deque<Vehicle> frontcar, rearcar;
+  
+
+
+  //calculate the distance and time to collision cost
   find_closest_cars_inlane(sdcar.s, inlane_veh_trajectories, frontcar, rearcar);
 
   int size = frontcar.size();
-  double distance = 0.0;
+
+  //calculate the lane change cost
+  int diff_lane = abs(get_lane(sdcar.d) - get_lane(frontcar[size - 1].d));
+
+  lane_cost = diff_lane;
   // cout << "Lane " << get_lane(frontcar[size - 1].d) << endl;
-  // front car has more cost than rear car
-  if(frontcar.size() == 0) {
-    totalcost += 0;
+  
+  if(frontcar.size() == 0) {  //no car in front of the ego
+    distance_cost = 0.;
     if(sdcar.v_ms < MAX_VEL) {
-      sdcar.ref_v_ += min(0.25, MAX_VEL - sdcar.v_ms);
-      printf("##increase speed %.2f!\n", min(0.25, MAX_VEL - sdcar.v_ms));
+      sdcar.adjust_speed(min(0.25, MAX_VEL - sdcar.v_ms));
     }
-
   } else {
+    vector<double> egoXY = sdcar.getXY(sdcar.s, sdcar.d);
+    vector<double> frontXY = sdcar.getXY(frontcar[size - 2].s, frontcar[size - 2].d);
 
-    distance = fabs(frontcar[size - 1].s - sdcar.s);
+    dist = calc_distance(egoXY[0], egoXY[1], frontXY[0], frontXY[1]);
+    distance_cost = 10*exp(-dist/10);
 
-    // check if the lane is the same
-    if(get_lane(sdcar.d) == get_lane(frontcar[size - 1].d)) {
-      printf("Front car in lane detected, dist: %.2f!\n", distance);
-      if(distance < DIST_BUFFER - 10) {
+    // check if the lane is the same as the ego's lane
+    if(get_lane(sdcar.d) == get_lane(frontcar[size - 2].d)) {
+      printf("Front car in lane detected, dist: %.2f!\n", dist);
+      if(dist < DIST_BUFFER/2) {
         is_dangerous = true;
-        totalcost += 3;
-      } else if(distance < DIST_BUFFER) {
+      } else if(dist < DIST_BUFFER) {
         is_cautious = true;
-        totalcost += 2;
-      } else {
-        if(frontcar[size - 1].v_ms > (sdcar.v_ms)) {
-          totalcost += 0;
-        } else {
-          cout << "Front car " << frontcar[size - 1].id << " speed is higher than self" << endl;
-          totalcost += 0;
-        }
       }
+      
       if(is_dangerous) {
         printf("##Dangerous!\n");
-        if(sdcar.v_ms > MIN_VEL) {
-          sdcar.ref_v_ -= 0.3; // in m/s
-        }
+        sdcar.adjust_speed( -0.3); // in m/s
+        
       } else if(is_cautious) {
         printf("##Cautious!\n");
-        if(sdcar.v_ms > MIN_VEL) {
-          sdcar.ref_v_ -= 0.2;
-        }
-      } else if(sdcar.v_ms < MAX_VEL) {
-        sdcar.ref_v_ += min(0.25, MAX_VEL - sdcar.v_ms);
-        printf("##increase speed %.2f!\n", min(0.25, MAX_VEL - sdcar.v_ms));
+        sdcar.adjust_speed(-0.2);
+        
+      } else {
+        sdcar.adjust_speed( min(0.25, MAX_VEL - sdcar.v_ms) );
       }
-    } else { // lane is not the same
+    } else { // different lane is important in case of change lane
 
-      if(distance < DIST_BUFFER) {
-        cout << "Front car other lane " << frontcar[size - 1].id << " distance: " << distance << endl;
+      if(dist < DIST_BUFFER) {
+        cout << "Front car other lane " << frontcar[size - 1].id << " distance: " << dist << endl;
         totalcost += 3;
       } else {
         if(frontcar[size - 1].v_ms > (sdcar.v_ms)) {
@@ -133,24 +128,31 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, vector<deque<Vehicl
       }
     }
   }
-
+  // calculate time to collision with the rear car of other lane
   size = rearcar.size();
   if(size == 0) {
-    totalcost += 0;
-  } else {
-    distance = fabs(rearcar[size - 1].s - sdcar.s);
-    if(distance < DIST_BUFFER / 2) {
-      cout << "Rear car distance too close!" << endl;
-      totalcost += 0.1;
-    }
+    time_to_collision_cost = 0;
+  } else if(diff_lane != 0){
 
-    /*if(rearcar[size - 1].v_ms < (sdcar.v_ms)) {
-      totalcost += 0.1;
-    }
-    } else {
+    double pred_s_ego = sdcar.s + sdcar.v_ms *1; // predict s in 1 second
+    double pred_s_rear = frontcar[size - 1].s + frontcar[size - 1].v_ms *1; // predict s in 1 second
 
-    }*/
+    vector<double> pred_egoXY = sdcar.getXY(pred_s_ego, sdcar.d);
+
+    //get the prediction waypoint of the rear car [size-1]
+    vector<double> pred_rearXY = sdcar.getXY(pred_s_rear, frontcar[size - 1].d);
+
+    dist = calc_distance(pred_egoXY[0], pred_egoXY[1], pred_rearXY[0], pred_rearXY[1]);
+    
+    double coll_t = dist / sdcar.v_ms;
+
+    time_to_collision_cost = 10*exp(-coll_t/10);
+      
+    printf("Rear cars, dist: %.2f, collision time: %.2f, time to collision: %.2f\n", dist, coll_t, time_to_collision_cost);
+
   }
+
+  totalcost = time_to_collision_cost * COLL_W + distance_cost * DIST_W + lane_cost * LANE_W;
 
   return totalcost;
 }

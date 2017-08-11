@@ -27,6 +27,11 @@ int Helper::get_lane(double d)
   }
 }
 
+double Helper::calc_distance(double x1, double y1, double x2, double y2)
+{
+  return sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+}
+
 double Helper::bc_speed_cost(double v)
 {
   // see lesson 4.11

@@ -29,10 +29,7 @@ class BehaviorFSM
   BehaviorFSM(const string& name, int lane);
   virtual ~BehaviorFSM();
 
-  /*
-  * Self driving car state update
-  */
-  virtual void update_ego(SDVehicle& sdcar, Vehicle& ego, const vector<double>& prev_path_x, const vector<double>& prev_path_y);
+
   /*
   * Current environment measurements update
   */
@@ -55,7 +52,6 @@ class BehaviorFSM
   */
   void realize_behavior(SDVehicle& sdcar, const vector<double> &s_coeff, const vector<double> &d_coeff, int steps = 40);
 
-  void drive_cs(SDVehicle& sdcar, double goal_v, double goal_d);
 
   /*
   * Find the closest front and behind vehicles from a given list of vehicles e in a lane
@@ -76,8 +72,6 @@ class BehaviorFSM
   string name_;
   // Goal lane of current state
   int goallane_;
-  // Suggested velocity of current state
-  double suggest_vel_;
 };
 
 //-----------------------------------
@@ -138,33 +132,5 @@ class PrepareLCR : public BehaviorFSM
   virtual ~PrepareLCR();
 };
 
-// class BehaviorFSM
-//{
-//  /* NOTE: react(), entry() and exit() functions need to be accessible
-//   * from tinyfsm::Fsm class. You might as well declare friendship to
-//   * tinyfsm::Fsm, and make these functions private:
-//   *
-//   * friend class Fsm;
-//   */
-// public:
-//
-//  /* default reaction for unhandled events */
-//  void react(tinyfsm::Event const &) { };
-//  virtual void react(MinCost const &);
-//
-//  virtual void entry(void) { };  /* entry actions in some states */
-//  void         exit(void)  { };  /* no exit actions at all */
-//
-//  void get_coeffs(vector<double> &coeffs);
-//
-//  Trajectory traj;
-//  vector<double> s_coeff;
-//  vector<double> d_coeff;
-// protected:
-//  vector<double> start_s;
-//  vector<double> start_d;
-//
-//  vector<deque<Vehicle>> veh_pred_trajectories;
-//};
 
 #endif

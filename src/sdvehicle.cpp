@@ -340,3 +340,16 @@ void SDVehicle::drive(double goal_v, double goal_d)
   }
   //printf("\n");
 }
+
+void SDVehicle::adjust_speed(double dv){
+
+  this->ref_v_ = this->ref_v_ + dv;
+
+  if(this->ref_v_ > MAX_VEL)
+  {
+    this->ref_v_ = MAX_VEL;
+  } else if(this->ref_v_ < MIN_VEL)
+  {
+    this->ref_v_ = MIN_VEL;
+  }
+}
