@@ -16,14 +16,6 @@
 using namespace std;
 
 
-struct EgoVehicle{
-  double x;
-  double y;
-  double s;
-  double d;
-  double v_ms;
-  double yaw;
-};
 
 // Implementing State Design Pattern
 class BehaviorFSM;
@@ -39,6 +31,7 @@ class SDVehicle:public Vehicle
   double s_dotdot, d_dotdot;
   double prev_v;
   double jerk;
+  double d_yaw;
   
   int prev_path_size;
   vector<double> next_x_vals;

@@ -13,7 +13,7 @@ public:
   double s, d;
   double v_ms;
   double a;
-  double yaw;
+  double yaw; //in radian
   
 };
 

@@ -9,7 +9,7 @@ using namespace std;
 
 namespace Helper
 {
-const int MAX_VEL = 21;     // m/s
+const int MAX_VEL = 21.5;     // m/s
 const int MIN_VEL = 4;      // m/s
 
 double deg2rad(double x);

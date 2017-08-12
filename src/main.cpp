@@ -334,14 +334,11 @@ int main() {
             case 0: {
               if(distance < 40)
                 printf("|  %d:%.1f  |           |           |\n", iter.second.back().id, distance);
-
-
               break;
             }
             case 1: {
               if(distance < 40)
                 printf("|           |  %d:%.1f  |           |\n", iter.second.back().id, distance);
-
               break;
             }
             case 2: {

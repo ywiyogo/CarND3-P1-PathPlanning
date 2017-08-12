@@ -22,10 +22,11 @@ enum Lane{
 };
 enum DriveMode
 {
-  STOP = 0,
+  NO_ACC = 0,
   NORMAL = 1,
   CAUTIOUS = 2,
   ALERT = 3,
+  STOP = 4,
 };
 
 // ----------------------------------------------------------------------------
