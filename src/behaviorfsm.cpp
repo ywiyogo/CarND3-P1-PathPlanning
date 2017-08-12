@@ -15,8 +15,8 @@ const double JMT_T = 2;     // in s for JMT
 const int STEPS = 50;
 
 // Cost value priority weight
-const int COLL_W = 4;
-const int DIST_W = 3;
+const int COLL_W = 5;
+const int DIST_W = 4;
 const int LANE_W = 1;
 //-----------------------------------------
 // Abstract Class
@@ -91,10 +91,12 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
 
     // check if the lane is the same as the ego's lane
     if(get_lane(sdcar.d) == lane) {
-      // printf("Front car in lane detected, dist: %.2f!\n", dist);
+      printf("Front car in lane detected, dist: %.2f!\n", dist);
+      // set the dynamic distance
       if(dist < MAX_VEL * 4.5){
         sdcar.fdistance = dist;
       }
+      
       if(dist < (DIST_BUFFER / 2)) {
         this->drive_mode_ = ALERT;
       } else if(dist < DIST_BUFFER) {
@@ -102,20 +104,14 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
       } else {
         this->drive_mode_ = NORMAL;
       }
-    } else { // different lane is important in case of change lane
-      if(dist < DIST_BUFFER) {
-        // cout << "\n Front car other lane " << lane << " id: " << frontcar[cur_idx].id << " distance: " << dist <<
-        // endl;
-        totalcost += 3;
-      } else {
-        if(frontcar[size - 1].v_ms > (sdcar.v_ms)) {
-          // cout << "Front car " << frontcar[size - 1].id << " speed is higher than self" << endl;
-          totalcost += 0;
-        } else {
-          totalcost += 0.2;
-        }
-      }
-    }
+    } 
+//    else { // different lane is important in case of change lane
+//      if(dist < DIST_BUFFER) {
+//
+//      } else {
+//
+//      }
+//    }
   }
 
   // calculate time to collision with the rear car of other lane
@@ -221,11 +217,19 @@ void BehaviorFSM::find_closest_cars_inlane(double ego_s,
     return;
   }
   int size = inlane_veh_trajectories.size();
+  int curr_idx;
+  if(size>1)
+  {
+    curr_idx = size-2;
+  }else{
+    curr_idx = size -1;
+  }
 
   for(int i = 0; i < size; i++) {
     int trajectory_size = inlane_veh_trajectories[i].size();
-    double curr_s = inlane_veh_trajectories[i][size - 1].s;
+    double curr_s = inlane_veh_trajectories[i][curr_idx].s;
     double diff = curr_s - ego_s;
+    
     if(diff > 0) {
       if(diff < front_min_dist) {
         front_min_dist = diff;
@@ -363,7 +367,7 @@ void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajecto
     switch(this->drive_mode_) {
     case NORMAL:
       if(sdcar.v_ms < MAX_VEL) {
-        sdcar.adjust_speed(min(0.4, MAX_VEL - sdcar.v_ms));
+        sdcar.adjust_speed(0.3);
       }
       break;
     default:
@@ -375,7 +379,7 @@ void Ready::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajecto
   } else {
     this->drive_mode_ = NORMAL;
 
-    sdcar.drive(2.0, 2 + 4 * get_lane(sdcar.d));
+    sdcar.drive(2.5, 2 + 4 * get_lane(sdcar.d));
   }
 }
 
@@ -395,6 +399,21 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
 
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
+  //reduce the acceleration peaks
+  if(fabs(sdcar.d_dotdot) > 2. && (fabs(sdcar.d_yaw) > 4.) )
+  {
+    if(this->drive_mode_ == NORMAL)
+    {
+      if(sdcar.v_ms > CL_MAX_VEL){
+        this->drive_mode_ = CAUTIOUS;
+      }
+      else{
+        this->drive_mode_ =NO_ACC;
+      }
+      
+    }
+  }
+  
   // 1. check the possible lane
   switch(currlane) {
   //------------------------

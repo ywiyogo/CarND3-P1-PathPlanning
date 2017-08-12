@@ -78,13 +78,25 @@ I've done several experiments to apply the jerk minimizing trajectory (JMT). How
 ![alt text][image1]
 
 As shown above, the acceleration and the velocity can oscilate very high if the algorithm apply a wrong `T` value.
+
+Here are my strategies to deal with the motion issue and the acceleration constraints:
+
+1. incorporate the previous path (`previous_path_x` and `previous_path_y`): if the previous path points is less than a particular limit, then the algorithm compute the behavior planning using the current measurement update.
+2. smoothing the `getXY()` function: the return value of this function is not smooth enough because the provided map waypoints are not dense enough. This sparse map waypoints causes acceleration peaks.
+3. Using spline instead of JMT based on the walkthrough video
+4. different simulation delay from 0.02 until  s causes higher jerk and acc
+![alt text][image2]
+
+The self-driving car can drive more then one lap as shown in this figure:
+![alt text][image3]
+
 #### Behavior Planning
 
 For the behavior planning, I implement 6 states in my FSM, as stated in the behavior planning lesson. The illustration of this FSM and its transitions is showed bellow:
-![alt text][image2]
+<p align="center">![alt text][image4]</p>
 
 The below figure shows the class diagram of the BehaviorFSM class.
-![alt text][image3]
+![alt text][image5]
 
 The transition between the states is trigger by a cost function. The cost function decides in which direction the self-driving car is going to drive next. The total cost function is defined as a sum of lane change cost, distance cost and time-to-collision cost with its weight:
 
@@ -97,7 +109,7 @@ In order to calculate the distance cost, first the algorithm converts the Frenet
     distance_cost = 10*exp(-dist/20);
 
 The below figure shows the graph of the distance cost.
-![alt text][image4]
+![alt text][image6]
 
 The time-to-collision cost uses this formula:
 
@@ -105,7 +117,7 @@ The time-to-collision cost uses this formula:
 
  The time when the self-driving car and another car collides is calculated by dividing the distance by the velocity of the self-driving car. For this cost function the algorithm concerns only the behind cars.
 
-![alt text][image5]
+![alt text][image7]
 
 ## Basic Build Instructions
 
@@ -159,9 +171,12 @@ Please (do your best to) stick to [Google's C++ style guide](https://google.gith
 
 [//]: # (Image References)
 [image1]: ./img/jmt_comparison.png
-[image2]: ./img/behavior_fsm.jpg
-[image3]: ./img/classBehaviorFSM.png
-[image4]: ./img/distance_cost_func.png
-[image5]: ./img/timecollision_cost_func.png
+[image2]: ./img/sim_update_time.png
+[image3]: ./img/track_record.png
+[image4]: ./img/behavior_fsm.jpg
+[image5]: ./img/classBehaviorFSM.png
+[image6]: ./img/distance_cost_func.png
+[image7]: ./img/timecollision_cost_func.png
+
 
 

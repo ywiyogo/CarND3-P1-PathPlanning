@@ -50,7 +50,7 @@ class BehaviorFSM
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory) = 0;
 
   string get_log();
-
+  inline int get_drive_mode(){return drive_mode_;};
   protected:
 
   /*

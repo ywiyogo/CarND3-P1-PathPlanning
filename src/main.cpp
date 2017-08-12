@@ -225,7 +225,7 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
   ofstream log_file( "../data/behavior.log", ios_base::out);
-  string log_title = "dt;x;y;s;d;d_dot;yaw;d_yaw;v_ms;ref_v_;a;jerk;FSM;mode;\n";
+  string log_title = "dt;x;y;s;d;d_dot;d_dotdot;yaw;d_yaw;v_ms;a;jerk;FSM;mode;\n";
   log_file << log_title;
 //  csvfile csv("../data/behavior.log"); // throws exceptions!
 //  csv << dt << x;y;s;d;yaw;dyaw;v;a;jerk;input_v<< endrow;

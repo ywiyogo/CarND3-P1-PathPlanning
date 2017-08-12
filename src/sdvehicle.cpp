@@ -187,11 +187,10 @@ void SDVehicle::update_env(const map<int, deque<Vehicle> >& vehicle_trajectories
 {
   this->sim_delay = dt;
   if(this->prev_path_size < 6) {
-    if(fabs(d_yaw) < 4.) {
-      behaviorfsm_->update_env(*this, vehicle_trajectories);
-    } else {
-      drive(v_ms, d);
-    }
+    behaviorfsm_->update_env(*this, vehicle_trajectories);
+  } else {
+    printf("### skip update ###\n");
+    drive(ref_v_, 2 + 4 * get_lane(d));
   }
   if(dt > .5) {
     printf("WARNING, delay is %f s", dt);
@@ -365,7 +364,6 @@ void SDVehicle::drive(double goal_v, double goal_d)
 
   int num_pts = 100;
 
-
   //  printf("Traj x: ");
   for(int i = 1; i <= num_pts; i++) {
     double N = target_dist / (0.02 * goal_v);
@@ -403,7 +401,7 @@ string SDVehicle::get_log()
 {
   char log[NAME_MAX];
   snprintf(log, sizeof(log), "%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%s\n", sim_delay, x, y, s, d,
-      d_dot, yaw, d_yaw, v_ms, ref_v_, a, jerk, behaviorfsm_->get_log().c_str());
+      d_dot, d_dotdot, yaw, d_yaw, v_ms, a, jerk, behaviorfsm_->get_log().c_str());
 
   return string(log);
 }
