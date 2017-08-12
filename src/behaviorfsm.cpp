@@ -93,10 +93,10 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
     if(get_lane(sdcar.d) == lane) {
       printf("Front car in lane detected, dist: %.2f!\n", dist);
       // set the dynamic distance
-      if(dist < MAX_VEL * 4.5){
+      if(dist < MAX_VEL * 4.5) {
         sdcar.fdistance = dist;
       }
-      
+
       if(dist < (DIST_BUFFER / 2)) {
         this->drive_mode_ = ALERT;
       } else if(dist < DIST_BUFFER) {
@@ -104,14 +104,14 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
       } else {
         this->drive_mode_ = NORMAL;
       }
-    } 
-//    else { // different lane is important in case of change lane
-//      if(dist < DIST_BUFFER) {
-//
-//      } else {
-//
-//      }
-//    }
+    }
+    //    else { // different lane is important in case of change lane
+    //      if(dist < DIST_BUFFER) {
+    //
+    //      } else {
+    //
+    //      }
+    //    }
   }
 
   // calculate time to collision with the rear car of other lane
@@ -127,7 +127,7 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
 
     double coll_t = dist / sdcar.v_ms;
     if(coll_t < 3) {
-      time_to_collision_cost = 10 * exp(-coll_t/0.4);
+      time_to_collision_cost = 10 * exp(-coll_t / 0.4);
     } else {
       time_to_collision_cost = 0;
     }
@@ -218,18 +218,17 @@ void BehaviorFSM::find_closest_cars_inlane(double ego_s,
   }
   int size = inlane_veh_trajectories.size();
   int curr_idx;
-  if(size>1)
-  {
-    curr_idx = size-2;
-  }else{
-    curr_idx = size -1;
+  if(size > 1) {
+    curr_idx = size - 2;
+  } else {
+    curr_idx = size - 1;
   }
 
   for(int i = 0; i < size; i++) {
     int trajectory_size = inlane_veh_trajectories[i].size();
     double curr_s = inlane_veh_trajectories[i][curr_idx].s;
     double diff = curr_s - ego_s;
-    
+
     if(diff > 0) {
       if(diff < front_min_dist) {
         front_min_dist = diff;
@@ -398,24 +397,20 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
   //  printf("## dv: %.2f\n", dynamic_dv);
 
   MinCost mcost;
-  mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
-  //reduce the acceleration peaks
-  if(fabs(sdcar.d_dotdot) > 2. && (fabs(sdcar.d_yaw) > 4.) )
-  {
-    if(this->drive_mode_ == NORMAL)
-    {
-      if(sdcar.v_ms > CL_MAX_VEL){
-        this->drive_mode_ = CAUTIOUS;
-      }
-      else{
-        this->drive_mode_ =NO_ACC;
-      }
-      
+  mcost = calc_min_cost(sdcar, cars_trajectories, goallane_);
+  // reduce the acceleration peaks
+
+  if(this->drive_mode_ == NORMAL) {
+    if(sdcar.jerk > 5) {
+      this->drive_mode_ = NO_ACC;
+    }
+    if(fabs(sdcar.d_dotdot) > 5. || (fabs(sdcar.d_yaw) > 4.)) {
+      this->drive_mode_ = CAUTIOUS;
     }
   }
-  
+
   // 1. check the possible lane
-  switch(currlane) {
+  switch(goallane_) {
   //------------------------
   // Lane 0
   //------------------------
@@ -534,11 +529,11 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   int currlane = get_lane(sdcar.d);
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
-  
-  if(sdcar.v_ms> CL_MAX_VEL && this->drive_mode_ == NORMAL){
-      this->drive_mode_ = CAUTIOUS;
+
+  if(sdcar.v_ms > CL_MAX_VEL && this->drive_mode_ == NORMAL) {
+    this->drive_mode_ = CAUTIOUS;
   }
-  
+
   switch(currlane) {
   case LANE1: // prepare 1 -> 0
     switch(this->drive_mode_) {
@@ -560,7 +555,7 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
     case LANE0:
       if(sdcar.v_ms <= CL_MAX_VEL) {
         set_behavior_state(sdcar, new LCL("LCL", LANE0));
-      }else{
+      } else {
         printf("Reducing velocity before changing lane");
       }
       break;
@@ -595,9 +590,9 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
     // 4. set new state if the cost says to move
     switch(mcost.lane) {
     case LANE1:
-     if(sdcar.v_ms <= CL_MAX_VEL) {
-      set_behavior_state(sdcar, new LCL("LCL", LANE1));
-      }else{
+      if(sdcar.v_ms <= CL_MAX_VEL) {
+        set_behavior_state(sdcar, new LCL("LCL", LANE1));
+      } else {
         printf("Reducing velocity before changing lane");
       }
       break;
@@ -622,11 +617,11 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   int currlane = get_lane(sdcar.d);
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
-  
-  if(sdcar.v_ms> CL_MAX_VEL && this->drive_mode_ == NORMAL){
-      this->drive_mode_ = CAUTIOUS;
+
+  if(sdcar.v_ms > CL_MAX_VEL && this->drive_mode_ == NORMAL) {
+    this->drive_mode_ = CAUTIOUS;
   }
-      
+
   switch(currlane) {
   // Robot on lane 0 praparing to lane 1
   case LANE0:
@@ -654,9 +649,9 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
 
       break;
     case LANE1:
-      if(sdcar.v_ms <= CL_MAX_VEL){
+      if(sdcar.v_ms <= CL_MAX_VEL) {
         set_behavior_state(sdcar, new LCR("LCR", LANE1));
-      }else{
+      } else {
         printf("Reducing velocity before changing lane");
       }
       break;
@@ -691,9 +686,9 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
 
       break;
     case LANE2:
-      if(sdcar.v_ms <= CL_MAX_VEL){
+      if(sdcar.v_ms <= CL_MAX_VEL) {
         set_behavior_state(sdcar, new LCR("LCR", LANE2));
-      }else{
+      } else {
         printf("Reducing velocity before changing lane");
       }
       break;
@@ -844,6 +839,6 @@ void LCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
 string BehaviorFSM::get_log()
 {
   char log[NAME_MAX];
-  snprintf(log, sizeof(log),"%s;%d", name_.c_str(),drive_mode_);
+  snprintf(log, sizeof(log), "%s;%d", name_.c_str(), drive_mode_);
   return string(log);
 }

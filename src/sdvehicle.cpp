@@ -165,7 +165,7 @@ void SDVehicle::update_ego(Vehicle& ego,
     int interval = 10; //(int)(1. / this->sim_delay);
     if(this->acc_list.size() >= interval) {
       for(int i = 0; i < this->acc_list.size(); i++) {
-        jerk += this->acc_list[i];
+        jerk += fabs(this->acc_list[i]);
       }
       jerk = jerk / this->acc_list.size();
       this->jerk = jerk;
