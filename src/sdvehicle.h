@@ -41,6 +41,7 @@ class SDVehicle:public Vehicle
   vector<double> global_traj_y_;
   deque<double> acc_list;
   
+  double fdistance;
   double sim_delay;
   double ref_v_;
   /**

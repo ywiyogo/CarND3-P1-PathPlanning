@@ -31,6 +31,7 @@ SDVehicle::SDVehicle()
     , map_wp_x(0.)
     , map_wp_y(0.)
     , map_wp_s(0.)
+    , fdistance(90)
     , sim_delay(0.02)
     , ref_v_(0.)
 {
@@ -97,7 +98,7 @@ void SDVehicle::update_ego(Vehicle& ego,
   this->y = ego.y;
   this->global_traj_x_.clear();
   this->global_traj_y_.clear();
-  printf("Prev path size: %d\n", int(prev_path_x.size()));
+
   if(prev_path_size < 2) {
     double prev_ref_x = ego.x - cos(ego.yaw);
     double prev_ref_y = ego.y - sin(ego.yaw);
@@ -175,7 +176,7 @@ void SDVehicle::update_ego(Vehicle& ego,
   }
   cout << "----------------------------------------------------------" << endl;
   cout << "dt: " << this->sim_delay << "x: " << this->x << " y: " << this->y << " yaw: " << this->yaw
-       << " dyaw: "<<d_yaw<<" speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk << endl;
+       << " dyaw: " << d_yaw << " speed: " << this->v_ms << " a: " << this->a << " jerk: " << this->jerk << endl;
   cout << " s: " << this->s << " ds: " << ds << " s_dot: " << this->s_dot << " s_dotdot: " << this->s_dotdot << endl;
   cout << " d: " << this->d << " dd: " << dd << " d_dot: " << this->d_dot << " d_dotdot: " << this->d_dotdot << endl;
   cout << "----------------------------------------------------------" << endl;
@@ -186,7 +187,11 @@ void SDVehicle::update_env(const map<int, deque<Vehicle> >& vehicle_trajectories
 {
   this->sim_delay = dt;
   if(this->prev_path_size < 6) {
-    behaviorfsm_->update_env(*this, vehicle_trajectories);
+    if(fabs(d_yaw) < 4.) {
+      behaviorfsm_->update_env(*this, vehicle_trajectories);
+    } else {
+      drive(v_ms, d);
+    }
   }
   if(dt > .5) {
     printf("WARNING, delay is %f s", dt);
@@ -216,49 +221,49 @@ void SDVehicle::set_map_waypoints_dy(const vector<double>& mwaypoints_dy)
 // Transform from Frenet s,d coordinates to Cartesian x,y
 vector<double> SDVehicle::getXY(double s, double d)
 {
-//  int prev_wp = -1;
-//
-//  while(s > map_wp_s[prev_wp + 1] && (prev_wp < (int)(map_wp_s.size() - 1))) {
-//    prev_wp++;
-//  }
-//
-//  int wp2 = (prev_wp + 1) % map_wp_x.size();
-//
-//  double heading = atan2((map_wp_y[wp2] - map_wp_y[prev_wp]), (map_wp_x[wp2] - map_wp_x[prev_wp]));
-//  // the x,y,s along the segment
-//  double seg_s = (s - map_wp_s[prev_wp]);
-//
-//  double seg_x = map_wp_x[prev_wp] + seg_s * cos(heading);
-//  double seg_y = map_wp_y[prev_wp] + seg_s * sin(heading);
-//
-//  double perp_heading = heading - M_PI / 2;
-//
-//  double x = seg_x + d * cos(perp_heading);
-//  double y = seg_y + d * sin(perp_heading);
-//
-//  return { x, y };
-  
-  //implementing the new getXY since the provided function doesn't work well
+  //  int prev_wp = -1;
+  //
+  //  while(s > map_wp_s[prev_wp + 1] && (prev_wp < (int)(map_wp_s.size() - 1))) {
+  //    prev_wp++;
+  //  }
+  //
+  //  int wp2 = (prev_wp + 1) % map_wp_x.size();
+  //
+  //  double heading = atan2((map_wp_y[wp2] - map_wp_y[prev_wp]), (map_wp_x[wp2] - map_wp_x[prev_wp]));
+  //  // the x,y,s along the segment
+  //  double seg_s = (s - map_wp_s[prev_wp]);
+  //
+  //  double seg_x = map_wp_x[prev_wp] + seg_s * cos(heading);
+  //  double seg_y = map_wp_y[prev_wp] + seg_s * sin(heading);
+  //
+  //  double perp_heading = heading - M_PI / 2;
+  //
+  //  double x = seg_x + d * cos(perp_heading);
+  //  double y = seg_y + d * sin(perp_heading);
+  //
+  //  return { x, y };
 
-//find the index of the s in the map(0 to 6945.554)
+  // implementing the new getXY since the provided function doesn't work well
+
+  // find the index of the s in the map(0 to 6945.554)
   vector<double> s_ranges, x_ranges, y_ranges;
   size_t m_size = map_wp_s.size();
-  s= fmod(MAX_S_MAP + s, MAX_S_MAP);
-  
-  const vector<double>::iterator &upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
-  int map_s_index = upper_iter - map_wp_s.begin() ;
-  int prev_wp = map_s_index -1;
-  
-  //get the range between +-3 from the
+  s = fmod(MAX_S_MAP + s, MAX_S_MAP);
+
+  const vector<double>::iterator& upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
+  int map_s_index = upper_iter - map_wp_s.begin();
+  int prev_wp = map_s_index - 1;
+
+  // get the range between +-3 from the
   for(int i = -3; i < 5; i++) {
-    
+
     size_t wp = (prev_wp + i + m_size) % m_size;
     double wp_s = map_wp_s[wp];
-    
+
     x_ranges.push_back(map_wp_x[wp] + d * map_wp_dx[wp]);
     y_ranges.push_back(map_wp_y[wp] + d * map_wp_dy[wp]);
-    
-    //Dealing with the circle circuit
+
+    // Dealing with the circle circuit
     if(prev_wp + i < 0) {
       wp_s -= MAX_S_MAP;
     } else if(prev_wp + i >= m_size) {
@@ -269,19 +274,19 @@ vector<double> SDVehicle::getXY(double s, double d)
 
   // Integrate spline to get the way curve by fitting s to x & y
   tk::spline spline_x, spline_y;
-  double x,y;
+  double x, y;
   spline_x.set_points(s_ranges, x_ranges);
   spline_y.set_points(s_ranges, y_ranges);
 
   x = spline_x(s);
   y = spline_y(s);
 
-  return {x, y};
+  return { x, y };
 }
 
 void SDVehicle::drive(double goal_v, double goal_d)
 {
-  
+
   //  double dist_inc = 0.4;
   //  for(int i =0; i<50; i++)
   //  {
@@ -292,11 +297,12 @@ void SDVehicle::drive(double goal_v, double goal_d)
   //    this->next_y_vals.push_back(XY[1]);
   //
   //  }
-
+  // frondt distance is determined in cost function calculation (the distance cost)
+  printf("Front distance: %.2f\n", fdistance);
   // add the next trajectory points sparsely and fill the points between with spline
-  vector<double> next_wp0 = this->getXY(this->s + 40, goal_d);
-  vector<double> next_wp1 = this->getXY(this->s + 70, goal_d);
-  vector<double> next_wp2 = this->getXY(this->s + 80, goal_d);
+  vector<double> next_wp0 = this->getXY(this->s + fdistance / 3, goal_d);
+  vector<double> next_wp1 = this->getXY(this->s + fdistance * 2 / 3, goal_d);
+  vector<double> next_wp2 = this->getXY(this->s + fdistance, goal_d);
 
   this->global_traj_x_.push_back(next_wp0[0]);
   this->global_traj_x_.push_back(next_wp1[0]);
@@ -306,15 +312,15 @@ void SDVehicle::drive(double goal_v, double goal_d)
   this->global_traj_y_.push_back(next_wp1[1]);
   this->global_traj_y_.push_back(next_wp2[1]);
   int size = this->global_traj_x_.size();
-  
+
   printf("Drive to %.2f m/s, d: %2.f \n", goal_v, goal_d);
 
-  //  printf("Global traj x: ");
-  //  for(int i = 0; i< size; i++)
-  //  {
-  //    printf("%.2f ",this->global_traj_x_[i]);
-  //  }
-  //  printf("\n");
+  //    printf("Global traj x: ");
+  //    for(int i = 0; i< size; i++)
+  //    {
+  //      printf("%.2f ",this->global_traj_x_[i]);
+  //    }
+  //    printf("\n");
   // Transformation the points to the local car coordinate (shift & rotation)
   // Alternative use Matrix calculation like in my MPC project
 
@@ -334,39 +340,34 @@ void SDVehicle::drive(double goal_v, double goal_d)
     printf("%.2f ", local_traj_x[i]);
   }
   printf("\n");
-  
-  if(local_traj_x[2]< 0.)
-  {
-    printf("## ERROR value of next wp! %.2f", local_traj_x[2]);
-    for(int i = 0; i < this->global_traj_x_.size(); i++) {
-    double shift_x = this->global_traj_x_[i] - this->x;
-    double shift_y = this->global_traj_y_[i] - this->y;
 
-    local_traj_x[i] = (shift_x * cos(-0.5) - shift_y * sin(-0.5));
-    local_traj_y[i] = (shift_x * sin(-0.5) + shift_y * cos(-0.5));
-  }
-    
-  }
+  //  if(local_traj_x[2]< 0.)
+  //  {
+  //    printf("## ERROR value of next wp! %.2f", local_traj_x[2]);
+  //    for(int i = 0; i < this->global_traj_x_.size(); i++) {
+  //    double shift_x = this->global_traj_x_[i] - this->x;
+  //    double shift_y = this->global_traj_y_[i] - this->y;
+  //
+  //    local_traj_x[i] = (shift_x * cos(-0.5) - shift_y * sin(-0.5));
+  //    local_traj_y[i] = (shift_x * sin(-0.5) + shift_y * cos(-0.5));
+  //  }
+
   tk::spline sp;
   // sort_coords(local_traj_x, local_traj_y);
   sp.set_points(local_traj_x, local_traj_y);
 
-
-  
   // Filling the space between the waypoint in order to get the desire velocity
   double target_x = local_traj_x[2];
   double target_y = sp(target_x);
   double target_dist = sqrt(pow(target_x, 2) + pow(target_y, 2));
 
   double start_x = 0;
-  int size_pts = 100;
-  if (this->v_ms < 2){
-    size_pts =200;
-  }
-  
-  
-  // printf("Traj x: ");
-  for(int i = 1; i <= size_pts - this->prev_path_size; i++) {
+
+  int num_pts = 100;
+
+
+  //  printf("Traj x: ");
+  for(int i = 1; i <= num_pts; i++) {
     double N = target_dist / (0.02 * goal_v);
     double x = start_x + (target_x / N);
     double y = sp(x);
@@ -381,11 +382,11 @@ void SDVehicle::drive(double goal_v, double goal_d)
     // shift back to global CS
     x += this->x;
     y += this->y;
-    // printf("%.2f, %.2f ",x, y);
+    //     printf("%.2f, %.2f ",x, y);
     this->next_x_vals.push_back(x);
     this->next_y_vals.push_back(y);
   }
-  // printf("\n");
+  //   printf("\n");
 }
 
 void SDVehicle::adjust_speed(double dv)
@@ -401,7 +402,8 @@ void SDVehicle::adjust_speed(double dv)
 string SDVehicle::get_log()
 {
   char log[NAME_MAX];
-  snprintf(log, sizeof(log), "%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%s\n", sim_delay,s,d,d_dot,yaw,d_yaw,v_ms,ref_v_,a,jerk,behaviorfsm_->get_log().c_str());
+  snprintf(log, sizeof(log), "%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%s\n", sim_delay, x, y, s, d,
+      d_dot, yaw, d_yaw, v_ms, ref_v_, a, jerk, behaviorfsm_->get_log().c_str());
 
   return string(log);
 }

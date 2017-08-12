@@ -10,19 +10,10 @@ using namespace Helper;
 
 const int horizon_t = 1;
 const int PRED_TIME = 1;
-
-const int CL_MAX_VEL = 17;  // m/s
-const int MAX_JERK = 10;    // in m/s3
-const int MAX_ACC = 9;      // in m/s2
-const int DIST_BUFFER = 35; // in m
-const double V_BUFFER = 5;
 const double SIM_dt = 0.02; // 0.02s
 const double JMT_T = 2;     // in s for JMT
 const int STEPS = 50;
-double max_dist = MAX_VEL * PRED_TIME;
-const double NORMAL_dV = 0.12;
-const double CAUTIOUS_dV = -0.1;
-const double ALERT_dV = -0.14;
+
 // Cost value priority weight
 const int COLL_W = 4;
 const int DIST_W = 3;
@@ -89,6 +80,7 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
 
   if(frontcar.size() == 0) { // no car in front of the ego
     distance_cost = 0.;
+    sdcar.fdistance = MAX_VEL * 4.5;
     this->drive_mode_ = NORMAL;
   } else {
 
@@ -100,6 +92,9 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
     // check if the lane is the same as the ego's lane
     if(get_lane(sdcar.d) == lane) {
       // printf("Front car in lane detected, dist: %.2f!\n", dist);
+      if(dist < MAX_VEL * 4.5){
+        sdcar.fdistance = dist;
+      }
       if(dist < (DIST_BUFFER / 2)) {
         this->drive_mode_ = ALERT;
       } else if(dist < DIST_BUFFER) {
@@ -520,6 +515,11 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   int currlane = get_lane(sdcar.d);
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
+  
+  if(sdcar.v_ms> CL_MAX_VEL && this->drive_mode_ == NORMAL){
+      this->drive_mode_ = CAUTIOUS;
+  }
+  
   switch(currlane) {
   case LANE1: // prepare 1 -> 0
     switch(this->drive_mode_) {
@@ -541,6 +541,8 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
     case LANE0:
       if(sdcar.v_ms <= CL_MAX_VEL) {
         set_behavior_state(sdcar, new LCL("LCL", LANE0));
+      }else{
+        printf("Reducing velocity before changing lane");
       }
       break;
     case LANE1:
@@ -574,7 +576,11 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
     // 4. set new state if the cost says to move
     switch(mcost.lane) {
     case LANE1:
+     if(sdcar.v_ms <= CL_MAX_VEL) {
       set_behavior_state(sdcar, new LCL("LCL", LANE1));
+      }else{
+        printf("Reducing velocity before changing lane");
+      }
       break;
     case LANE2:
       set_behavior_state(sdcar, new KeepLane("KeepLane", LANE2));
@@ -597,6 +603,11 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   int currlane = get_lane(sdcar.d);
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
+  
+  if(sdcar.v_ms> CL_MAX_VEL && this->drive_mode_ == NORMAL){
+      this->drive_mode_ = CAUTIOUS;
+  }
+      
   switch(currlane) {
   // Robot on lane 0 praparing to lane 1
   case LANE0:
@@ -624,7 +635,11 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
 
       break;
     case LANE1:
-      set_behavior_state(sdcar, new LCR("LCR", LANE1));
+      if(sdcar.v_ms <= CL_MAX_VEL){
+        set_behavior_state(sdcar, new LCR("LCR", LANE1));
+      }else{
+        printf("Reducing velocity before changing lane");
+      }
       break;
     default:
       printf("Invalid lane: %d", mcost.lane);
@@ -657,7 +672,11 @@ void PrepareLCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
 
       break;
     case LANE2:
-      set_behavior_state(sdcar, new LCR("LCR", LANE2));
+      if(sdcar.v_ms <= CL_MAX_VEL){
+        set_behavior_state(sdcar, new LCR("LCR", LANE2));
+      }else{
+        printf("Reducing velocity before changing lane");
+      }
       break;
     default:
       printf("Invalid lane: %d", mcost.lane);
@@ -683,7 +702,7 @@ void LCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   // from lane 1 to 0 and from lane 2 to 1. During the transitions the robot will drive until
   // the d value of the goal lane is reached. If this is reach then the robot can keep on the lane
   int currlane = get_lane(sdcar.d);
-
+  sdcar.fdistance = MAX_VEL * 5;
   if(sdcar.v_ms > CL_MAX_VEL) {
     this->drive_mode_ = CAUTIOUS;
   } else {
@@ -760,7 +779,7 @@ void LCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
   } else {
     this->drive_mode_ = NORMAL;
   }
-
+  sdcar.fdistance = MAX_VEL * 5;
   switch(this->goallane_) {
   case LANE1: {
     if(fabs(sdcar.d - 6) > 0.2) { // goal not yet reached, generate trajectory

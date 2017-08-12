@@ -11,6 +11,15 @@ namespace Helper
 {
 const int MAX_VEL = 21.5;     // m/s
 const int MIN_VEL = 4;      // m/s
+const int CL_MAX_VEL = 14;  // m/s
+const int MAX_JERK = 10;    // in m/s3
+const int MAX_ACC = 9;      // in m/s2
+const int DIST_BUFFER = 40; // in m
+const double V_BUFFER = 5;
+
+const double NORMAL_dV = 0.11;
+const double CAUTIOUS_dV = -0.1;
+const double ALERT_dV = -0.13;
 
 double deg2rad(double x);
 
