@@ -224,6 +224,12 @@ int main() {
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
   }
+  ofstream log_file( "../data/behavior.log", ios_base::out);
+  string log_title = "dt;s;d;d_dot;yaw;d_yaw;v_ms;ref_v_;a;jerk;FSM;mode;\n";
+  log_file << log_title;
+//  csvfile csv("../data/behavior.log"); // throws exceptions!
+//  csv << dt << x;y;s;d;yaw;dyaw;v;a;jerk;input_v<< endrow;
+//  
   SDVehicle sdcar;
   Prediction prediction;
   sdcar.set_map_waypoints_x(map_waypoints_x);
@@ -363,8 +369,8 @@ int main() {
 
           msgJson["next_x"] = sdcar.next_x_vals;
           msgJson["next_y"] = sdcar.next_y_vals;
-
-
+        
+          log_file << sdcar.get_log();
 
           auto msg = "42[\"control\"," + msgJson.dump() + "]";
 

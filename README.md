@@ -37,7 +37,9 @@ For the sensor fusion data, a list of all other car's attributes on the same sid
 
 There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
 
-The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
+The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. 
+
+The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
 
 The map data of the highway can be found in data/highway_map.txt
 Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
@@ -72,16 +74,16 @@ In my opinion, the main issue of this project is to generate paths using a colle
 
 To create a smooth trajectory, the instructor has introduced a library to create a spline: [http://kluge.in-chemnitz.de/opensource/spline/](http://kluge.in-chemnitz.de/opensource/spline/), the spline function is in a single hearder file is really easy to use.
 
-The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
-
+I've done several experiments to apply the jerk minimizing trajectory (JMT). However, since I cannot control the trajectory between a start and goal points, I avoid to use JMT. The below figure shows different trajectories by varying the variable `T`
 ![alt text][image1]
 
+As shown above, the acceleration and the velocity can oscilate very high if the algorithm apply a wrong `T` value.
 #### Behavior Planning
 
 For the behavior planning, I implement 6 states in my FSM, as stated in the behavior planning lesson. The illustration of this FSM and its transitions is showed bellow:
 ![alt text][image2]
 
-the below figure shows the class diagram of the BehaviorFSM class.
+The below figure shows the class diagram of the BehaviorFSM class.
 ![alt text][image3]
 
 The transition between the states is trigger by a cost function. The cost function decides in which direction the self-driving car is going to drive next. The total cost function is defined as a sum of lane change cost, distance cost and time-to-collision cost with its weight:
@@ -92,13 +94,18 @@ Based on the detected cars and the available lanes in the simulator, the algorit
 
 In order to calculate the distance cost, first the algorithm converts the Frenet to Cartesian coordinates. Then it calculates the Euclidean distance from the both (x,y) points. Finally the distance cost is defined as:
 
-    distance_cost = 10*exp(-dist/10);
+    distance_cost = 10*exp(-dist/20);
 
 The below figure shows the graph of the distance cost.
 ![alt text][image4]
 
-The time-to-collision cost uses the same formula as the distance cost. The time when the self-driving car and another car collides is calculated by dividing the distance by the velocity of the self-driving car.
+The time-to-collision cost uses this formula:
 
+    time_to_collision_cost = 10 * exp(-coll_t/0.4);
+
+ The time when the self-driving car and another car collides is calculated by dividing the distance by the velocity of the self-driving car. For this cost function the algorithm concerns only the behind cars.
+
+![alt text][image5]
 
 ## Basic Build Instructions
 
@@ -155,5 +162,6 @@ Please (do your best to) stick to [Google's C++ style guide](https://google.gith
 [image2]: ./img/behavior_fsm.jpg
 [image3]: ./img/classBehaviorFSM.png
 [image4]: ./img/distance_cost_func.png
+[image5]: ./img/timecollision_cost_func.png
 
 

@@ -216,27 +216,67 @@ void SDVehicle::set_map_waypoints_dy(const vector<double>& mwaypoints_dy)
 // Transform from Frenet s,d coordinates to Cartesian x,y
 vector<double> SDVehicle::getXY(double s, double d)
 {
-  int prev_wp = -1;
+//  int prev_wp = -1;
+//
+//  while(s > map_wp_s[prev_wp + 1] && (prev_wp < (int)(map_wp_s.size() - 1))) {
+//    prev_wp++;
+//  }
+//
+//  int wp2 = (prev_wp + 1) % map_wp_x.size();
+//
+//  double heading = atan2((map_wp_y[wp2] - map_wp_y[prev_wp]), (map_wp_x[wp2] - map_wp_x[prev_wp]));
+//  // the x,y,s along the segment
+//  double seg_s = (s - map_wp_s[prev_wp]);
+//
+//  double seg_x = map_wp_x[prev_wp] + seg_s * cos(heading);
+//  double seg_y = map_wp_y[prev_wp] + seg_s * sin(heading);
+//
+//  double perp_heading = heading - M_PI / 2;
+//
+//  double x = seg_x + d * cos(perp_heading);
+//  double y = seg_y + d * sin(perp_heading);
+//
+//  return { x, y };
+  
+  //implementing the new getXY since the provided function doesn't work well
 
-  while(s > map_wp_s[prev_wp + 1] && (prev_wp < (int)(map_wp_s.size() - 1))) {
-    prev_wp++;
+//find the index of the s in the map(0 to 6945.554)
+  vector<double> s_ranges, x_ranges, y_ranges;
+  size_t m_size = map_wp_s.size();
+  s= fmod(MAX_S_MAP + s, MAX_S_MAP);
+  
+  const vector<double>::iterator &upper_iter = std::upper_bound(map_wp_s.begin(), map_wp_s.end(), s);
+  int map_s_index = upper_iter - map_wp_s.begin() ;
+  int prev_wp = map_s_index -1;
+  
+  //get the range between +-3 from the
+  for(int i = -3; i < 5; i++) {
+    
+    size_t wp = (prev_wp + i + m_size) % m_size;
+    double wp_s = map_wp_s[wp];
+    
+    x_ranges.push_back(map_wp_x[wp] + d * map_wp_dx[wp]);
+    y_ranges.push_back(map_wp_y[wp] + d * map_wp_dy[wp]);
+    
+    //Dealing with the circle circuit
+    if(prev_wp + i < 0) {
+      wp_s -= MAX_S_MAP;
+    } else if(prev_wp + i >= m_size) {
+      wp_s += MAX_S_MAP;
+    }
+    s_ranges.push_back(wp_s);
   }
 
-  int wp2 = (prev_wp + 1) % map_wp_x.size();
+  // Integrate spline to get the way curve by fitting s to x & y
+  tk::spline spline_x, spline_y;
+  double x,y;
+  spline_x.set_points(s_ranges, x_ranges);
+  spline_y.set_points(s_ranges, y_ranges);
 
-  double heading = atan2((map_wp_y[wp2] - map_wp_y[prev_wp]), (map_wp_x[wp2] - map_wp_x[prev_wp]));
-  // the x,y,s along the segment
-  double seg_s = (s - map_wp_s[prev_wp]);
+  x = spline_x(s);
+  y = spline_y(s);
 
-  double seg_x = map_wp_x[prev_wp] + seg_s * cos(heading);
-  double seg_y = map_wp_y[prev_wp] + seg_s * sin(heading);
-
-  double perp_heading = heading - M_PI / 2;
-
-  double x = seg_x + d * cos(perp_heading);
-  double y = seg_y + d * sin(perp_heading);
-
-  return { x, y };
+  return {x, y};
 }
 
 void SDVehicle::drive(double goal_v, double goal_d)
@@ -254,9 +294,9 @@ void SDVehicle::drive(double goal_v, double goal_d)
   //  }
 
   // add the next trajectory points sparsely and fill the points between with spline
-  vector<double> next_wp0 = this->getXY(this->s + 30, goal_d);
-  vector<double> next_wp1 = this->getXY(this->s + 60, goal_d);
-  vector<double> next_wp2 = this->getXY(this->s + 90, goal_d);
+  vector<double> next_wp0 = this->getXY(this->s + 40, goal_d);
+  vector<double> next_wp1 = this->getXY(this->s + 70, goal_d);
+  vector<double> next_wp2 = this->getXY(this->s + 80, goal_d);
 
   this->global_traj_x_.push_back(next_wp0[0]);
   this->global_traj_x_.push_back(next_wp1[0]);
@@ -297,7 +337,7 @@ void SDVehicle::drive(double goal_v, double goal_d)
   
   if(local_traj_x[2]< 0.)
   {
-    printf("## ERROR value of next wp! %.2f", next_wp0[0]);
+    printf("## ERROR value of next wp! %.2f", local_traj_x[2]);
     for(int i = 0; i < this->global_traj_x_.size(); i++) {
     double shift_x = this->global_traj_x_[i] - this->x;
     double shift_y = this->global_traj_y_[i] - this->y;
@@ -314,7 +354,7 @@ void SDVehicle::drive(double goal_v, double goal_d)
 
   
   // Filling the space between the waypoint in order to get the desire velocity
-  double target_x = 30;
+  double target_x = local_traj_x[2];
   double target_y = sp(target_x);
   double target_dist = sqrt(pow(target_x, 2) + pow(target_y, 2));
 
@@ -356,4 +396,12 @@ void SDVehicle::adjust_speed(double dv)
   if(this->ref_v_ > MAX_VEL) {
     this->ref_v_ = MAX_VEL;
   }
+}
+
+string SDVehicle::get_log()
+{
+  char log[NAME_MAX];
+  snprintf(log, sizeof(log), "%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%s\n", sim_delay,s,d,d_dot,yaw,d_yaw,v_ms,ref_v_,a,jerk,behaviorfsm_->get_log().c_str());
+
+  return string(log);
 }

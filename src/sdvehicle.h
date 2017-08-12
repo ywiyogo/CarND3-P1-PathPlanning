@@ -64,6 +64,7 @@ class SDVehicle:public Vehicle
 
   void adjust_speed(double dv);
 
+  string get_log();
   // Copy the map waypoints
   void set_map_waypoints_x(const vector<double> &mwaypoints_x);
   void set_map_waypoints_y(const vector<double> &mwaypoints_y);

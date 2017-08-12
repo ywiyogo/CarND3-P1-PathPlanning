@@ -49,6 +49,8 @@ class BehaviorFSM
   */
   virtual void update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > trajectory) = 0;
 
+  string get_log();
+
   protected:
 
   /*
@@ -81,6 +83,8 @@ class BehaviorFSM
   double calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<deque<Vehicle> >& inlane_veh_trajectories);
 
   MinCost calc_min_cost(SDVehicle& sdcar,map<int, deque<Vehicle> > predictions, int curr_lane);
+
+  
 
   // Name of the FSM
   string name_;

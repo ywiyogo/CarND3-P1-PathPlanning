@@ -11,7 +11,7 @@ using namespace Helper;
 const int horizon_t = 1;
 const int PRED_TIME = 1;
 
-const int CL_MAX_VEL = 12;  // m/s
+const int CL_MAX_VEL = 17;  // m/s
 const int MAX_JERK = 10;    // in m/s3
 const int MAX_ACC = 9;      // in m/s2
 const int DIST_BUFFER = 35; // in m
@@ -22,7 +22,7 @@ const int STEPS = 50;
 double max_dist = MAX_VEL * PRED_TIME;
 const double NORMAL_dV = 0.12;
 const double CAUTIOUS_dV = -0.1;
-const double ALERT_dV = -0.15;
+const double ALERT_dV = -0.14;
 // Cost value priority weight
 const int COLL_W = 4;
 const int DIST_W = 3;
@@ -95,7 +95,7 @@ double BehaviorFSM::calc_behaviorlane_cost(SDVehicle& sdcar, int lane, vector<de
     vector<double> egoXY = sdcar.getXY(sdcar.s, sdcar.d);
     vector<double> frontXY = sdcar.getXY(frontcar[cur_idx].s, frontcar[cur_idx].d);
     dist = calc_distance(egoXY[0], egoXY[1], frontXY[0], frontXY[1]);
-    distance_cost = 10 * exp(-dist / 10);
+    distance_cost = 10 * exp(-dist / 20);
 
     // check if the lane is the same as the ego's lane
     if(get_lane(sdcar.d) == lane) {
@@ -400,23 +400,13 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
 
   MinCost mcost;
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
-
-  if((fabs(sdcar.sim_delay) < 0.08) && (this->drive_mode_ == NORMAL)) {
-    printf("sdcar v: %.2f \n", sdcar.v_ms);
-    this->drive_mode_ = NO_ACC;
-  }
-  if(fabs(sdcar.d_yaw) > 0.02 && sdcar.v_ms > 4 && (this->drive_mode_ == NORMAL)) { //~10 deg
-    printf("\n!!!!! sharp curve -> reduce speed!");
-    this->drive_mode_ = CAUTIOUS;
-  }
   // 1. check the possible lane
   switch(currlane) {
   //------------------------
   // Lane 0
   //------------------------
   case LANE0:
-    cout << "Lane 0" << endl;
-
+    printf("Drive mode: ");
     switch(this->drive_mode_) {
     case NORMAL:
       if(sdcar.v_ms < MAX_VEL) {
@@ -485,6 +475,7 @@ void KeepLane::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_traje
     }
     break;
   case LANE2:
+    printf("Drive mode: ");
     switch(this->drive_mode_) {
     case NORMAL:
       if(sdcar.v_ms < MAX_VEL) {
@@ -531,7 +522,6 @@ void PrepareLCL::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_tra
   mcost = calc_min_cost(sdcar, cars_trajectories, currlane);
   switch(currlane) {
   case LANE1: // prepare 1 -> 0
-
     switch(this->drive_mode_) {
     case NORMAL:
       if(sdcar.v_ms > CL_MAX_VEL) {
@@ -811,4 +801,11 @@ void LCR::update_env(SDVehicle& sdcar, map<int, deque<Vehicle> > cars_trajectori
     sdcar.drive(sdcar.ref_v_, 10);
   } break;
   }
+}
+
+string BehaviorFSM::get_log()
+{
+  char log[NAME_MAX];
+  snprintf(log, sizeof(log),"%s;%d", name_.c_str(),drive_mode_);
+  return string(log);
 }
