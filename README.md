@@ -64,9 +64,13 @@ The codes are divided in several cpp and h files which repesents the object-orie
 
 Moreover, I shifted several helper functions in to a additional namespace, called Helper.
 
-I apply the **state design pattern** for the behavior planner. The **state design pattern** can represent the finite state machine of the behavior planner. This design decreases the number of the line of codes and the use of `switch-case` or `if-else` statements. 
+I apply the [state design pattern](https://en.wikipedia.org/wiki/State_pattern) for the behavior planner. The state design pattern can represent the finite state machine of the behavior planner. This design decreases the number of the line of codes and the use of `switch-case` or `if-else` statements. A simple illustration can be seen below:
 
 
+![alt text][image8]
+
+The below figure shows the class diagram of the BehaviorFSM class.
+![alt text][image5]
 
 ### Motion Control
 
@@ -93,10 +97,7 @@ The self-driving car can drive more then one lap as shown in this figure:
 #### Behavior Planning
 
 For the behavior planning, I implement 6 states in my FSM, as stated in the behavior planning lesson. The illustration of this FSM and its transitions is showed bellow:
-<p align="center">![alt text][image4]</p>
-
-The below figure shows the class diagram of the BehaviorFSM class.
-![alt text][image5]
+![alt text][image4]
 
 The transition between the states is trigger by a cost function. The cost function decides in which direction the self-driving car is going to drive next. The total cost function is defined as a sum of lane change cost, distance cost and time-to-collision cost with its weight:
 
@@ -177,6 +178,7 @@ Please (do your best to) stick to [Google's C++ style guide](https://google.gith
 [image5]: ./img/classBehaviorFSM.png
 [image6]: ./img/distance_cost_func.png
 [image7]: ./img/timecollision_cost_func.png
+[image8]: ./img/state_design_pattern.png
 
 
 
